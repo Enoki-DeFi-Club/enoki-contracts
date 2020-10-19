@@ -1,0 +1,22 @@
+{
+    "compilerOptions": {
+      "target": "es5",
+      "module": "commonjs",
+      "strict": true,
+      "esModuleInterop": true,
+      "outDir": "dist",
+      "resolveJsonModule": true,
+      "noImplicitAny": false,
+    },
+    "include": [
+      "./scripts",
+      "./deploy",
+      "./test"
+    ],
+    "files": [
+      "./buidler.config.ts",
+      "node_modules/@nomiclabs/buidler-ethers/src/type-extensions.d.ts",
+      "node_modules/@nomiclabs/buidler-waffle/src/type-extensions.d.ts",
+      "node_modules/@nomiclabs/buidler-etherscan/src/type-extensions.d.ts"
+    ]
+  }

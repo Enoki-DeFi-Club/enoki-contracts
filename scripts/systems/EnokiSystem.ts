@@ -42,6 +42,7 @@ import {Multisig} from "../deploy/Multisig";
 const Web3 = require("web3");
 import dotenv from "dotenv";
 import {getCurrentTimestamp} from "../timeUtils";
+import {EnokiAddresses} from "../deploy/deployed";
 dotenv.config();
 
 export interface UniswapPool {
@@ -85,9 +86,9 @@ export class EnokiSystem {
     // Proxy Admin
     proxyAdmin!: Contract;
 
-    config: LaunchConfig;
-    deployer: Signer;
-    provider: providers.Provider;
+    config!: LaunchConfig;
+    deployer!: Signer;
+    provider!: providers.Provider;
 
     flags!: LaunchFlags;
 
@@ -112,11 +113,45 @@ export class EnokiSystem {
         // For local testnet fork, use --unlock option for accounts to sign with
         this.web3 = new Web3("http://localhost:8545");
         this.flags = flags;
-        this.fastGasPrice = utils.parseUnits("92", "gwei");
+        this.fastGasPrice = utils.parseUnits("170", "gwei");
         console.log(`Fast Gas Price: ${this.fastGasPrice.toString()}`);
         this.overrides = {
             gasPrice: this.fastGasPrice,
         };
+    }
+
+    static fromDeployed(
+        config: LaunchConfig,
+        provider: providers.Provider,
+        deployer: Signer,
+        flags: LaunchFlags,
+        deployed: EnokiAddresses
+    ): EnokiSystem {
+        const enoki = new EnokiSystem(config, provider, deployer, flags);
+        enoki.sporeToken= new Contract(deployed.sporeToken, SporeToken.abi,deployer);
+        enoki.presale= new Contract(deployed.presale, SporePresale.abi,deployer);
+        enoki.missionsProxy= new Contract(deployed.missionsProxy, Mission.abi,deployer);
+        enoki.missionsLogic= new Contract(deployed.missionsLogic, Mission.abi,deployer);
+        enoki.lpTokenVesting= new Contract(deployed.lpTokenVesting, TokenVesting.abi,deployer);
+        enoki.approvedContractList= new Contract(deployed.approvedContractList, ApprovedContractList.abi,deployer);
+        enoki.enokiGeyserEscrow= new Contract(deployed.enokiGeyserEscrow, GeyserEscrow.abi,deployer);
+        enoki.enokiGeyserProxy= new Contract(deployed.sporeToken, EnokiGeyser.abi,deployer);
+        enoki.enokiGeyserLogic= new Contract(deployed.sporeToken, EnokiGeyser.abi,deployer);
+        enoki.enokiToken= new Contract(deployed.sporeToken, MiniMeToken.abi,deployer);
+        enoki.enokiDaoAgent= new Contract(deployed.sporeToken, Agent.abi,deployer);
+        enoki.devFundPaymentSplitter= new Contract(deployed.sporeToken, PaymentSplitter.abi,deployer);
+        enoki.devFundEthVesting= new Contract(deployed.sporeToken, EthVesting.abi,deployer);
+        enoki.devMultisig = Multisig.fromAddress(
+            enoki.web3,
+            provider,
+            deployer,
+            config.devMultisig.address,
+            config.devMultisig.owners,
+            flags.testmode
+        );
+        enoki.proxyAdmin= new Contract(deployed.sporeToken, SporeToken.abi,deployer);
+
+        return enoki;
     }
 
     async connectEnokiDAO() {
@@ -364,6 +399,26 @@ export class EnokiSystem {
             Proxy: ${this.enokiGeyserProxy.address}
             Logic: ${this.enokiGeyserLogic.address}
         `);
+    }
+
+    async deployLpVesting(duration: BigNumber) {
+        const {config, deployer} = this;
+
+        this.lpTokenVesting = await deployContract(
+            deployer,
+            TokenVesting,
+            [
+                this.enokiDaoAgent.address,
+                getCurrentTimestamp(),
+                config.lpTokenVesting.cliff,
+                duration,
+                false,
+            ],
+            this.overrides
+        );
+
+        console.log(`Deployed LpTokenVesting
+            ${this.lpTokenVesting.address}`);
     }
 
     async deployVestingInfrastructure() {

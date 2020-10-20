@@ -1,6 +1,6 @@
 pragma solidity ^0.6.0;
 
-contract MushroomLib {
+library MushroomLib {
     struct MushroomData {
         uint256 species;
         uint256 strength;

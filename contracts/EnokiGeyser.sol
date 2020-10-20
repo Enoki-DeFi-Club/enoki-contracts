@@ -5,14 +5,16 @@
     - Distribute 5% of ENOKI rewards to Chefs
 */
 pragma solidity ^0.6.0;
+pragma experimental ABIEncoderV2;
 
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
 
 import "./TokenPool.sol";
 import "./Defensible.sol";
 import "./MushroomNFT.sol";
+import "./MushroomLib.sol";
 
 import "./metadata/MushroomMetadata.sol";
 
@@ -34,8 +36,10 @@ import "./metadata/MushroomMetadata.sol";
  *      More background and motivation available at:
  *      https://github.com/ampleforth/RFCs/blob/master/RFCs/rfc-1.md
  */
-contract EnokiGeyser is Ownable, Defensible, MushroomLib {
+contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
     using SafeMath for uint256;
+    using MushroomLib for MushroomLib.MushroomData;
+    using MushroomLib for MushroomLib.MushroomType;
 
     event Staked(address indexed user, address nftContract, uint256 nftId, uint256 total, bytes data);
     event Unstaked(address indexed user, address nftContract, uint256 nftId, uint256 total, bytes data);
@@ -68,6 +72,16 @@ contract EnokiGeyser is Ownable, Defensible, MushroomLib {
     uint256 private _lastAccountingTimestampSec = now;
     uint256 private _maxUnlockSchedules = 0;
     uint256 private _initialSharesPerToken = 0;
+
+    //
+    // Dev reward state
+    //
+    uint256 public constant MAX_PERCENTAGE = 100;
+    uint256 public devRewardPercentage = 0; //0% - 100%
+    address public devRewardAddress;
+
+    address public admin;
+    ApprovedContractList public approvedContractList;
 
     //
     // User accounting state
@@ -114,22 +128,34 @@ contract EnokiGeyser is Ownable, Defensible, MushroomLib {
      *                    e.g. 25% means user gets 25% of max distribution tokens.
      * @param bonusPeriodSec_ Length of time for bonus to increase linearly to max.
      * @param initialSharesPerToken Number of shares to mint per staking token on first stake.
+     * @param maxStakesPerAddress_ Maximum number of NFTs stakeable by a given account.
+     * @param devRewardAddress_ Recipient address of dev rewards.
+     * @param devRewardPercentage_ Pecentage of rewards claimed to be distributed for dev address.
+
      */
-    constructor(
+    function initialize(
         IERC20 distributionToken,
         uint256 maxUnlockSchedules,
         uint256 startBonus_,
         uint256 bonusPeriodSec_,
         uint256 initialSharesPerToken,
         uint256 maxStakesPerAddress_,
-        address mushroomMetadata_
-    ) public {
+        address devRewardAddress_,
+        uint256 devRewardPercentage_,
+        address approvedContractList_,
+        address admin_
+    ) public initializer {
         // The start bonus must be some fraction of the max. (i.e. <= 100%)
         require(startBonus_ <= 10**BONUS_DECIMALS, "EnokiGeyser: start bonus too high");
         // If no period is desired, instead set startBonus = 100%
         // and bonusPeriod to a small value like 1sec.
         require(bonusPeriodSec_ != 0, "EnokiGeyser: bonus period is zero");
         require(initialSharesPerToken > 0, "EnokiGeyser: initialSharesPerToken is zero");
+
+        // The dev reward must be some fraction of the max. (i.e. <= 100%)
+        require(devRewardPercentage_ <= MAX_PERCENTAGE, "EnokiGeyser: dev reward too high");
+        
+        __Ownable_init();
 
         _unlockedPool = new TokenPool(distributionToken);
         _lockedPool = new TokenPool(distributionToken);
@@ -138,7 +164,13 @@ contract EnokiGeyser is Ownable, Defensible, MushroomLib {
         _maxUnlockSchedules = maxUnlockSchedules;
         _initialSharesPerToken = initialSharesPerToken;
         maxStakesPerAddress = maxStakesPerAddress_;
-        mushroomMetadata = MushroomMetadata(mushroomMetadata_);
+
+        devRewardPercentage = devRewardPercentage_;
+        devRewardAddress = devRewardAddress_;
+
+        admin = admin_;
+
+        approvedContractList = ApprovedContractList(approvedContractList_);
     }
 
     // TODO: Add a method for per-index staking access
@@ -146,9 +178,18 @@ contract EnokiGeyser is Ownable, Defensible, MushroomLib {
         return mushroomMetadata.hasMetadataResolver(nftContract);
     }
 
+    modifier onlyAdmin() {
+        require(admin == msg.sender, "EnokiGeyser: Only Admin");
+        _;
+    }
+
     // Only effects future stakes
-    function setMaxStakesPerAddress(uint256 maxStakes) public onlyOwner {
+    function setMaxStakesPerAddress(uint256 maxStakes) public onlyAdmin {
         maxStakesPerAddress = maxStakes;
+    }
+
+    function setMushroomMetadata(address mushroomMetadata_) public onlyAdmin {
+        mushroomMetadata = MushroomMetadata(mushroomMetadata_);
     }
 
     /**
@@ -167,7 +208,7 @@ contract EnokiGeyser is Ownable, Defensible, MushroomLib {
         address nftContract,
         uint256 nftIndex,
         bytes calldata data
-    ) external defend {
+    ) external defend(approvedContractList) {
         require(isNftStakeable(nftContract), "EnokiGeyser: nft not stakeable");
         _stakeFor(msg.sender, msg.sender, nftContract, nftIndex);
     }
@@ -189,7 +230,7 @@ contract EnokiGeyser is Ownable, Defensible, MushroomLib {
 
         // Shares is determined by NFT mushroom rate
 
-        MushroomData memory metadata = mushroomMetadata.getMushroomData(nftContract, nftIndex, "");
+        MushroomLib.MushroomData memory metadata = mushroomMetadata.getMushroomData(nftContract, nftIndex, "");
 
         uint256 mintedStakingShares = (totalStakingShares > 0)
             ? totalStakingShares.mul(metadata.strength).div(totalStaked())
@@ -234,9 +275,15 @@ contract EnokiGeyser is Ownable, Defensible, MushroomLib {
 
     /**
      * @param stakes Mushrooms to unstake.
-     * @return The total number of distribution tokens that would be rewarded.
      */
-    function unstakeQuery(uint256[] memory stakes) public returns (uint256) {
+    function unstakeQuery(uint256[] memory stakes)
+        public
+        returns (
+            uint256 totalReward,
+            uint256 userReward,
+            uint256 devReward
+        )
+    {
         return _unstake(stakes);
     }
 
@@ -244,9 +291,15 @@ contract EnokiGeyser is Ownable, Defensible, MushroomLib {
      * @dev Unstakes a certain amount of previously deposited tokens. User also receives their
      * alotted number of distribution tokens.
      * @param stakes Mushrooms to unstake.
-     * @return The total number of distribution tokens rewarded.
      */
-    function _unstake(uint256[] memory stakes) private returns (uint256) {
+    function _unstake(uint256[] memory stakes)
+        private
+        returns (
+            uint256 totalReward,
+            uint256 userReward,
+            uint256 devReward
+        )
+    {
         updateAccounting();
 
         // 1. User Accounting
@@ -259,7 +312,7 @@ contract EnokiGeyser is Ownable, Defensible, MushroomLib {
         for (uint256 i = 0; i < stakes.length; i++) {
             Stake storage lastStake = accountStakes[i];
 
-            MushroomData memory metadata = mushroomMetadata.getMushroomData(lastStake.nftContract, lastStake.nftIndex, "");
+            MushroomLib.MushroomData memory metadata = mushroomMetadata.getMushroomData(lastStake.nftContract, lastStake.nftIndex, "");
             uint256 lifespanUsed = now.sub(lastStake.timestampSec);
 
             // fully redeem a past stake
@@ -300,13 +353,19 @@ contract EnokiGeyser is Ownable, Defensible, MushroomLib {
         // _lastAccountingTimestampSec = now;
 
         // interactions
-        require(_unlockedPool.transfer(msg.sender, rewardAmount), "EnokiGeyser: transfer out of unlocked pool failed");
+        totalReward = rewardAmount;
+        (userReward, devReward) = computeDevReward(totalReward);
+        if (userReward > 0) {
+            require(_unlockedPool.transfer(msg.sender, userReward), "EnokiGeyser: transfer to user out of unlocked pool failed");
+        }
 
-        
+        if (devReward > 0) {
+            require(_unlockedPool.transfer(devRewardAddress, devReward), "EnokiGeyser: transfer to dev out of unlocked pool failed");
+        }
+
         emit TokensClaimed(msg.sender, rewardAmount);
 
         require(totalStakingShares == 0 || totalStaked() > 0, "EnokiGeyser: Error unstaking. Staking shares exist, but no staking tokens do");
-        return rewardAmount;
     }
 
     /**
@@ -339,6 +398,25 @@ contract EnokiGeyser is Ownable, Defensible, MushroomLib {
             oneHundredPct
         );
         return currentRewardTokens.add(bonusedReward);
+    }
+
+    /**
+     * @dev Determines split of specified reward amount between user and dev.
+     * @param totalReward Amount of reward to split.
+     * @return userReward Reward amounts for user and dev.
+     * @return devReward Reward amounts for user and dev.
+     */
+    function computeDevReward(uint256 totalReward) public view returns (uint256 userReward, uint256 devReward) {
+        if (devRewardPercentage == 0) {
+            userReward = totalReward;
+            devReward = 0;
+        } else if (devRewardPercentage == MAX_PERCENTAGE) {
+            userReward = 0;
+            devReward = totalReward;
+        } else {
+            devReward = totalReward.mul(devRewardPercentage).div(MAX_PERCENTAGE);
+            userReward = totalReward.sub(devReward); // Extra dust due to truncated rounding goes to user
+        }
     }
 
     /**

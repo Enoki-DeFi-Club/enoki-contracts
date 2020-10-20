@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 usePlugin("@nomiclabs/buidler-waffle");
+usePlugin("@nomiclabs/buidler-etherscan");
 
 // This is a sample Buidler task. To learn how to create your own go to
 // https://buidler.dev/guides/create-task.html
@@ -27,8 +28,8 @@ const config: BuidlerConfig = {
             accounts: {mnemonic: process.env.MNEMONIC!},
             timeout: 0,
         },
-        forknet: {
-            url: process.env.FORKNET_URL,
+        mainnet: {
+            url: process.env.MAINNET_NODE_URL,
             accounts: {mnemonic: process.env.MNEMONIC!},
             timeout: 0,
         },
@@ -40,6 +41,9 @@ const config: BuidlerConfig = {
             runs: 200,
         },
     },
+    etherscan: {
+        apiKey: process.env.ETHERSCAN_API_KEY
+      }
 };
 
 export default config;

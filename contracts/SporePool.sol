@@ -1,4 +1,5 @@
 pragma solidity ^0.6.0;
+pragma experimental ABIEncoderV2;
 
 /* 
     Releases spores at the given rate until exhausted
@@ -13,9 +14,10 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "./Defensible.sol";
-import "./MushroomFactory.sol";
-import "./Missions.sol";
+import "./interfaces/IMushroomFactory.sol";
+import "./interfaces/IMission.sol";
 import "./SporeToken.sol";
+import "./ApprovedContractList.sol";
 
 contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
     using SafeMath for uint256;
@@ -31,14 +33,19 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
 
+    uint256 public constant MAX_PERCENTAGE = 100;
+    uint256 public devRewardPercentage;
+    address public devRewardAddress;
+
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
 
     uint256 private _totalSupply;
     mapping(address => uint256) private _balances;
 
-    MushroomFactory public mushroomFactory;
-    Missions public missions;
+    IMushroomFactory public mushroomFactory;
+    IMission public mission;
+    ApprovedContractList public approvedContractList;
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -47,12 +54,19 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
         address _rewardsToken,
         address _stakingToken,
         address _mushroomFactory,
-        address _missions
+        address _mission,
+        address _approvedContractList,
+        uint256 _devRewardPercentage,
+        address _devRewardAddress
     ) public {
         rewardsToken = SporeToken(_rewardsToken);
         stakingToken = IERC20(_stakingToken);
-        mushroomFactory = MushroomFactory(_mushroomFactory);
-        missions = Missions(_missions);
+        mushroomFactory = IMushroomFactory(_mushroomFactory);
+        mission = IMission(_mission);
+        approvedContractList = ApprovedContractList(_approvedContractList);
+
+        devRewardPercentage = _devRewardPercentage;
+        devRewardAddress = _devRewardAddress;
     }
 
     /* ========== VIEWS ========== */
@@ -86,7 +100,7 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
-    function stake(uint256 amount) external nonReentrant defend whenNotPaused updateReward(msg.sender) {
+    function stake(uint256 amount) external nonReentrant defend(approvedContractList) whenNotPaused updateReward(msg.sender) {
         require(amount > 0, "Cannot stake 0");
         _totalSupply = _totalSupply.add(amount);
         _balances[msg.sender] = _balances[msg.sender].add(amount);
@@ -102,7 +116,7 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
         emit Withdrawn(msg.sender, amount);
     }
 
-    function harvest(uint256 mushroomsToGrow) public nonReentrant defend updateReward(msg.sender) {
+    function harvest(uint256 mushroomsToGrow) public nonReentrant updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
 
         if (reward > 0) {
@@ -113,7 +127,14 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
             if (mushroomsToGrow > 0) {
                 uint256 totalCost = mushroomFactory.costPerMushroom().mul(mushroomsToGrow);
                 require(reward >= totalCost, "Not enough rewards to grow the number of mushrooms specified");
-                rewardsToken.burn(totalCost);
+
+                uint256 toDev = totalCost.mul(devRewardPercentage).div(MAX_PERCENTAGE);
+                rewardsToken.burn(totalCost.sub(toDev));
+
+                if (toDev > 0) {
+                    mission.sendSpores(devRewardAddress, toDev);
+                }
+
                 remainingReward = reward.sub(totalCost);
                 mushroomFactory.growMushrooms(msg.sender, mushroomsToGrow);
             }
@@ -121,8 +142,8 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
             if (remainingReward > 0) {
                 // TODO: Add safe ERC20 features to spore token
                 // rewardsToken.safeTransfer(msg.sender, remainingReward);
-                
-                rewardsToken.transfer(msg.sender, remainingReward);
+
+                mission.sendSpores(msg.sender, remainingReward);
                 emit RewardPaid(msg.sender, remainingReward);
             }
         }
@@ -159,13 +180,10 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
     // Added to support recovering LP Rewards from other systems such as BAL to be distributed to holders
     function recoverERC20(address tokenAddress, uint256 tokenAmount) external onlyOwner {
         // Cannot recover the staking token or the rewards token
-        require(
-            tokenAddress != address(stakingToken) && tokenAddress != address(rewardsToken),
-            "Cannot withdraw the staking or rewards tokens"
-        );
+        require(tokenAddress != address(stakingToken) && tokenAddress != address(rewardsToken), "Cannot withdraw the staking or rewards tokens");
 
         //TODO: Add safeTransfer
-        IERC20(tokenAddress).transfer(owner, tokenAmount);
+        IERC20(tokenAddress).transfer(owner(), tokenAmount);
         emit Recovered(tokenAddress, tokenAmount);
     }
 

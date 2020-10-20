@@ -11,38 +11,48 @@ contract SporePresale is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    mapping (address => bool) public whitelist;
-    mapping (address => uint) public ethSupply;
-    uint public whitelistCount;
+    mapping(address => bool) public whitelist;
+    mapping(address => uint256) public ethSupply;
+    uint256 public whitelistCount;
     address payable devAddress;
-    uint public sporePrice = 5;
-    uint public buyLimit = 3 * 1e18;
+    uint256 public sporePrice = 25;
+    uint256 public buyLimit = 3 * 1e18;
     bool public presaleStart = false;
     bool public onlyWhitelist = true;
-    uint public presaleLastSupply = 30000 * 1e18;
+    uint256 public presaleLastSupply = 15000 * 1e18;
 
-    SporeToken private spore = SporeToken(0x9cEB84f92A0561fa3Cc4132aB9c0b76A59787544);
+    SporeToken public spore;
 
-    event BuySporeSuccess(address account, uint ethAmount, uint sporeAmount);
+    event BuySporeSuccess(address account, uint256 ethAmount, uint256 sporeAmount);
 
-    constructor(address payable account) public {
-        devAddress = account;
-
-        initWhitelist();
+    constructor(address payable devAddress_, SporeToken sporeToken_) public {
+        devAddress = devAddress_;
+        spore = sporeToken_;
     }
 
-    function addToWhitelist(address account) public onlyOwner {
-        require(whitelist[account] == false, "This account is already in whitelist.");
-        whitelist[account] = true;
-        whitelistCount = whitelistCount + 1;
+    function addToWhitelist(address[] memory accounts) public onlyOwner {
+        for (uint256 i = 0; i < accounts.length; i++) {
+            address account = accounts[i];
+
+            require(whitelist[account] == false, "This account is already in whitelist.");
+            whitelist[account] = true;
+            whitelistCount = whitelistCount + 1;
+        }
     }
 
-    function removeFromWhitelist(address account) public onlyOwner {
-        require(whitelist[account], "This account is not in whitelist.");
-        whitelist[account] = false;
-        whitelistCount = whitelistCount - 1;
+    function removeFromWhitelist(address[] memory accounts) public onlyOwner {
+        for (uint256 i = 0; i < accounts.length; i++) {
+            address account = accounts[i];
+
+            require(whitelist[account], "This account is not in whitelist.");
+            whitelist[account] = false;
+            whitelistCount = whitelistCount - 1;
+        }
     }
 
+    function getDevAddress() public view returns (address) {
+        return address(devAddress);
+    }
     function setDevAddress(address payable account) public onlyOwner {
         devAddress = account;
     }
@@ -55,11 +65,11 @@ contract SporePresale is Ownable {
         presaleStart = false;
     }
 
-    function setSporePrice(uint newPrice) public onlyOwner {
+    function setSporePrice(uint256 newPrice) public onlyOwner {
         sporePrice = newPrice;
     }
 
-    function setBuyLimit(uint newLimit) public onlyOwner {
+    function setBuyLimit(uint256 newLimit) public onlyOwner {
         buyLimit = newLimit;
     }
 
@@ -77,23 +87,18 @@ contract SporePresale is Ownable {
         _;
     }
 
-    receive() payable external presaleHasStarted needHaveLastSupply {
+    receive() external payable presaleHasStarted needHaveLastSupply {
         if (onlyWhitelist) {
             require(whitelist[msg.sender], "This time is only for people who are in whitelist.");
         }
-        uint ethTotalAmount = ethSupply[msg.sender].add(msg.value);
+        uint256 ethTotalAmount = ethSupply[msg.sender].add(msg.value);
         require(ethTotalAmount <= buyLimit, "Everyone should buy less than 3 eth.");
-        uint sporeAmount = msg.value.mul(sporePrice);
+        uint256 sporeAmount = msg.value.mul(sporePrice);
         require(sporeAmount <= presaleLastSupply, "insufficient presale supply");
         presaleLastSupply = presaleLastSupply.sub(sporeAmount);
         spore.mint(msg.sender, sporeAmount);
         ethSupply[msg.sender] = ethTotalAmount;
         devAddress.transfer(msg.value);
         emit BuySporeSuccess(msg.sender, msg.value, sporeAmount);
-    }
-
-     function initWhitelist() internal {
-        whitelist[0x3c5de42f02DebBaA235f7a28E4B992362FfeE0B6] = true;
-       
     }
 }

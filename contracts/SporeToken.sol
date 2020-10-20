@@ -8,37 +8,43 @@ contract SporeToken is ERC20("SporeFinance", "SPORE"), Ownable {
     using SafeMath for uint256;
 
     /* ========== STATE VARIABLES ========== */
+    mapping(address => bool) public minters;
+    address public initialLiquidityManager;
 
-    bool internal _transfersEnabled = true;
-    bool internal _usedTransferDisable = false;
-
-    mapping (address => bool) public minters;
+    bool internal _transfersEnabled;
+    mapping(address => bool) internal _canTransferInitialLiquidity;
 
     /* ========== CONSTRUCTOR ========== */
 
-    constructor() public {
-        _transfersEnabled = true;
+    constructor(address initialLiquidityManager_) public {
+        _transfersEnabled = false;
         minters[msg.sender] = true;
+        initialLiquidityManager = initialLiquidityManager_;
+        _canTransferInitialLiquidity[msg.sender] = true;
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
     /// @notice Transfer is enabled as normal except during an initial phase
     function transfer(address recipient, uint256 amount) public override returns (bool) {
-        require(_transfersEnabled, "SporeToken: transfers not enabled");
+        require(_transfersEnabled || _canTransferInitialLiquidity[msg.sender], "SporeToken: transfers not enabled");
 
         return super.transfer(recipient, amount);
     }
 
     /// @notice TransferFrom is enabled as normal except during an initial phase
-    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
-        require(_transfersEnabled, "SporeToken: transfers not enabled");
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) public override returns (bool) {
+        require(_transfersEnabled || _canTransferInitialLiquidity[msg.sender], "SporeToken: transfers not enabled");
 
         return super.transferFrom(sender, recipient, amount);
     }
 
     /// @notice Any account is entitled to burn their own tokens
-    function burn(uint amount) public {
+    function burn(uint256 amount) public {
         require(amount > 0);
         require(balanceOf(msg.sender) >= amount);
         _burn(msg.sender, amount);
@@ -46,19 +52,17 @@ contract SporeToken is ERC20("SporeFinance", "SPORE"), Ownable {
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
-    function mint(address to, uint amount) public onlyMinter {
+    function mint(address to, uint256 amount) public onlyMinter {
         _mint(to, amount);
     }
 
-    /// @notice Owner can one-time disable token transfers, which will be used to prevent trading until the presale is complete
-    function oneTimeTransferDisable() public onlyOwner {
-        require(!_usedTransferDisable, "SporeToken: one time transfer disable already used");
-        _usedTransferDisable = true;
-        _transfersEnabled = false;
+    function addInitialLiquidityTransferRights(address account) public onlyInitialLiquidityManager {
+        require(!_transfersEnabled, "SporeToken: cannot add initial liquidity transfer rights after global transfers enabled");
+        _canTransferInitialLiquidity[account] = true;
     }
 
-    /// @notice Re-enable transfers after the initial period where transfers are disabled.
-    function enableTransfers() public onlyOwner {
+    /// @notice One time acion to enable global transfers after the initial liquidity is supplied.
+    function enableTransfers() public onlyInitialLiquidityManager {
         _transfersEnabled = true;
     }
 
@@ -72,6 +76,11 @@ contract SporeToken is ERC20("SporeFinance", "SPORE"), Ownable {
 
     modifier onlyMinter() {
         require(minters[msg.sender], "Restricted to minters.");
+        _;
+    }
+
+    modifier onlyInitialLiquidityManager() {
+        require(initialLiquidityManager == msg.sender, "Restricted to initial liquidity manager.");
         _;
     }
 }

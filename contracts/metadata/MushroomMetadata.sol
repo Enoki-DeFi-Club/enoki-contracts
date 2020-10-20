@@ -4,8 +4,12 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./resolvers/MetadataResolver.sol";
+import "../MushroomLib.sol";
 
-contract MushroomMetadata is Ownable, MushroomLib {
+contract MushroomMetadata is Ownable {
+    using MushroomLib for MushroomLib.MushroomData;
+    using MushroomLib for MushroomLib.MushroomType;
+
     mapping(address => address) public metadataResolvers;
 
     event ResolverSet(address nft, address resolver);
@@ -23,9 +27,9 @@ contract MushroomMetadata is Ownable, MushroomLib {
         address nftContract,
         uint256 nftIndex,
         bytes calldata data
-    ) external view onlyWithMetadataResolver(nftContract) returns (MushroomData memory) {
+    ) external view onlyWithMetadataResolver(nftContract) returns (MushroomLib.MushroomData memory) {
         MetadataResolver resolver = MetadataResolver(metadataResolvers[nftContract]);
-        MushroomData memory mushroomData = resolver.getMushroomData(nftIndex, data);
+        MushroomLib.MushroomData memory mushroomData = resolver.getMushroomData(nftIndex, data);
         return mushroomData;
     }
 

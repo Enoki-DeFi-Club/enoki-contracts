@@ -1,11 +1,17 @@
 pragma solidity ^0.6.0;
 
-// Only smart contracts will be affected by this modifier
+import "./ApprovedContractList.sol";
+
+/*
+    Prevent smart contracts from calling functions unless approved by the specified whitelist.
+*/
 contract Defensible {
-    modifier defend() {
-        require(
-            (msg.sender == tx.origin) // If it is a normal user and not smart contract, then the requirement will pass
-        );
-        _;
-    }
+ // Only smart contracts will be affected by this modifier
+  modifier defend(ApprovedContractList approvedContractList) {
+    require(
+      (msg.sender == tx.origin) || approvedContractList.isApproved(msg.sender),
+      "This smart contract has not been approved"
+    );
+    _;
+  }
 }

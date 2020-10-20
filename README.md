@@ -4,7 +4,7 @@
 ## Spore Token
 Spore tokens are used in the game mechanics of Enoki projects. There is a 230,000 supply. 
 
-* 20,000 is distributed in the Presale
+* 15,000 is distributed in the Presale
 * 5,000 is locked for initial liquidity, to be vested to the Enoki Club DAO over 24 monthes
 * 210,000 is locked in the Missions to be distributed in Spore farming pools.
 

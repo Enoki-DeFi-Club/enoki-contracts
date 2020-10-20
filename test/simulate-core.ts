@@ -127,7 +127,7 @@ describe("Simulate Core", function () {
         const balance = await jsonRpcProvider.getBalance(
             enoki.devFundPaymentSplitter.address
         );
-        expect(balance).to.be.equal(utils.parseEther("1"));
+        expect(balance.toString()).to.be.equal(utils.parseEther("1").toString());
     });
 
     it("Payment splitter should successfully transfer ETH to DevMultisig and DevVesting on release", async function () {

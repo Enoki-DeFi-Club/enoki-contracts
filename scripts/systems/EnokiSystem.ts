@@ -1,6 +1,14 @@
 import {daysToSeconds, LaunchConfig, WHALES} from "../config/launchConfig";
 import {deployContract} from "ethereum-waffle";
-import ethers, {Signer, Contract, providers, utils, constants, BigNumber, Overrides} from "ethers";
+import ethers, {
+    Signer,
+    Contract,
+    providers,
+    utils,
+    constants,
+    BigNumber,
+    Overrides,
+} from "ethers";
 
 import SporeToken from "../../artifacts/SporeToken.json";
 import SporePresale from "../../artifacts/SporePresale.json";
@@ -100,16 +108,21 @@ export class EnokiSystem {
         this.deployer = deployer;
         this.provider = provider;
         this.deployer.getAddress().then((address) => (this.deployerAddress = address));
-        
+
         // For local testnet fork, use --unlock option for accounts to sign with
         this.web3 = new Web3("http://localhost:8545");
         this.flags = flags;
+        this.fastGasPrice = utils.parseUnits("92", "gwei");
+        console.log(`Fast Gas Price: ${this.fastGasPrice.toString()}`);
+        this.overrides = {
+            gasPrice: this.fastGasPrice,
+        };
     }
 
     async connectEnokiDAO() {
         const {config, deployer} = this;
 
-        console.log(`Deployer Address: ${await deployer.getAddress()}`)
+        console.log(`Deployer Address: ${await deployer.getAddress()}`);
         this.enokiDaoAgent = new Contract(
             config.externalContracts.enokiDaoAgent,
             Agent.abi,
@@ -125,7 +138,6 @@ export class EnokiSystem {
             Agent ${this.enokiDaoAgent.address}
             Token ${this.enokiToken.address}
         `);
-
     }
 
     async connectUniswap() {
@@ -144,11 +156,17 @@ export class EnokiSystem {
 
     async deployProxyAdmin() {
         const {config, deployer} = this;
-        this.proxyAdmin = await deployContract(deployer, ProxyAdmin);
+        this.proxyAdmin = await deployContract(
+            deployer,
+            ProxyAdmin,
+            undefined,
+            this.overrides
+        );
 
         await (
             await this.proxyAdmin.transferOwnership(
-                this.devMultisig.ethersContract.address
+                this.devMultisig.ethersContract.address,
+                this.overrides
             )
         ).wait();
 
@@ -161,12 +179,15 @@ export class EnokiSystem {
         const {config, deployer} = this;
         this.approvedContractList = await deployContract(
             deployer,
-            ApprovedContractList
+            ApprovedContractList,
+            undefined,
+            this.overrides
         );
 
         await (
             await this.approvedContractList.transferOwnership(
-                this.devMultisig.ethersContract.address
+                this.devMultisig.ethersContract.address,
+                this.overrides
             )
         ).wait();
 
@@ -177,9 +198,12 @@ export class EnokiSystem {
 
     async deploySporeToken() {
         const {config, deployer} = this;
-        this.sporeToken = await deployContract(deployer, SporeToken, [
-            this.devMultisig.ethersContract.address,
-        ]);
+        this.sporeToken = await deployContract(
+            deployer,
+            SporeToken,
+            [this.devMultisig.ethersContract.address],
+            this.overrides
+        );
 
         console.log(`Deployed Spore Token: 
             ${this.sporeToken.address}
@@ -192,14 +216,16 @@ export class EnokiSystem {
         await (
             await this.sporeToken.mint(
                 this.devMultisig.ethersContract.address,
-                config.sporeDistribution.initialLiquidity
+                config.sporeDistribution.initialLiquidity,
+                this.overrides
             )
         ).wait();
 
         await (
             await this.sporeToken.mint(
                 this.missionsProxy.address,
-                config.sporeDistribution.mission0
+                config.sporeDistribution.mission0,
+                this.overrides
             )
         ).wait();
     }
@@ -209,7 +235,8 @@ export class EnokiSystem {
         await (
             await this.enokiToken.transfer(
                 this.enokiGeyserEscrow.address,
-                config.enokiDistribution.geyserAmount
+                config.enokiDistribution.geyserAmount,
+                this.overrides
             )
         ).wait();
     }
@@ -217,30 +244,45 @@ export class EnokiSystem {
     async finalizeSporeTokenPermissions() {
         const {config, deployer} = this;
 
-        await (await this.sporeToken.addMinter(this.enokiDaoAgent.address)).wait();
-        await (await this.sporeToken.addMinter(this.presale.address)).wait();
-
-        await (await this.sporeToken.removeMinter(await deployer.getAddress())).wait();
+        await (
+            await this.sporeToken.addMinter(this.enokiDaoAgent.address, this.overrides)
+        ).wait();
+        await (
+            await this.sporeToken.addMinter(this.presale.address, this.overrides)
+        ).wait();
 
         await (
-            await this.sporeToken.transferOwnership(this.enokiDaoAgent.address)
+            await this.sporeToken.removeMinter(
+                await deployer.getAddress(),
+                this.overrides
+            )
+        ).wait();
+
+        await (
+            await this.sporeToken.transferOwnership(
+                this.enokiDaoAgent.address,
+                this.overrides
+            )
         ).wait();
     }
 
     async transferPresaleToMultisig() {
         await (
             await this.presale.transferOwnership(
-                this.devMultisig.ethersContract.address
+                this.devMultisig.ethersContract.address,
+                this.overrides
             )
         ).wait();
     }
 
     async deployPresale() {
         const {config, deployer} = this;
-        this.presale = await deployContract(deployer, SporePresale, [
-            this.devFundPaymentSplitter.address,
-            this.sporeToken.address,
-        ]);
+        this.presale = await deployContract(
+            deployer,
+            SporePresale,
+            [this.devFundPaymentSplitter.address, this.sporeToken.address],
+            this.overrides
+        );
 
         console.log(`Deployed Presale: 
             ${this.presale.address}
@@ -249,18 +291,24 @@ export class EnokiSystem {
 
     async deployMission0() {
         const {config, deployer} = this;
-        this.missionsLogic = await deployContract(deployer, Mission);
+        this.missionsLogic = await deployContract(
+            deployer,
+            Mission,
+            undefined,
+            this.overrides
+        );
 
         const iface = new utils.Interface(Mission.abi);
         const encoded = iface.encodeFunctionData("initialize", [
             this.sporeToken.address,
         ]);
 
-        const proxy = await deployContract(deployer, AdminUpgradeabilityProxy, [
-            this.missionsLogic.address,
-            this.proxyAdmin.address,
-            encoded,
-        ]);
+        const proxy = await deployContract(
+            deployer,
+            AdminUpgradeabilityProxy,
+            [this.missionsLogic.address, this.proxyAdmin.address, encoded],
+            this.overrides
+        );
 
         // Interpret as Logic
         this.missionsProxy = new Contract(proxy.address, Mission.abi, deployer);
@@ -268,7 +316,8 @@ export class EnokiSystem {
         console.log("owner", await this.missionsProxy.owner());
         await (
             await this.missionsProxy.transferOwnership(
-                this.devMultisig.ethersContract.address
+                this.devMultisig.ethersContract.address,
+                this.overrides
             )
         ).wait();
 
@@ -280,7 +329,12 @@ export class EnokiSystem {
 
     async deployEnokiGeyser() {
         const {config, deployer} = this;
-        this.enokiGeyserLogic = await deployContract(deployer, EnokiGeyser);
+        this.enokiGeyserLogic = await deployContract(
+            deployer,
+            EnokiGeyser,
+            undefined,
+            this.overrides
+        );
 
         const iface = new utils.Interface(EnokiGeyser.abi);
         const encoded = iface.encodeFunctionData("initialize", [
@@ -296,11 +350,12 @@ export class EnokiSystem {
             this.devMultisig.ethersContract.address,
         ]);
 
-        const proxy = await deployContract(deployer, AdminUpgradeabilityProxy, [
-            this.enokiGeyserLogic.address,
-            this.proxyAdmin.address,
-            encoded,
-        ]);
+        const proxy = await deployContract(
+            deployer,
+            AdminUpgradeabilityProxy,
+            [this.enokiGeyserLogic.address, this.proxyAdmin.address, encoded],
+            this.overrides
+        );
 
         // Interpret as Logic
         this.enokiGeyserProxy = new Contract(proxy.address, EnokiGeyser.abi, deployer);
@@ -313,43 +368,66 @@ export class EnokiSystem {
 
     async deployVestingInfrastructure() {
         const {config, deployer} = this;
-        this.devFundEthVesting = await deployContract(deployer, EthVesting, [
-            this.devMultisig.ethersContract.address,
-            await deployer.getAddress(),
-            getCurrentTimestamp(),
-            config.devFundEthVesting.cliff,
-            config.devFundEthVesting.duration,
-            daysToSeconds(3),
-        ]);
+        this.devFundEthVesting = await deployContract(
+            deployer,
+            EthVesting,
+            [
+                this.devMultisig.ethersContract.address,
+                await deployer.getAddress(),
+                getCurrentTimestamp(),
+                config.devFundEthVesting.cliff,
+                config.devFundEthVesting.duration,
+                daysToSeconds(3),
+            ],
+            this.overrides
+        );
 
-        this.devFundPaymentSplitter = await deployContract(deployer, PaymentSplitter, [
-            [this.devMultisig.ethersContract.address, this.devFundEthVesting.address],
-            [config.paymentSplitter.share, config.paymentSplitter.share],
-        ]);
+        this.devFundPaymentSplitter = await deployContract(
+            deployer,
+            PaymentSplitter,
+            [
+                [
+                    this.devMultisig.ethersContract.address,
+                    this.devFundEthVesting.address,
+                ],
+                [config.paymentSplitter.share, config.paymentSplitter.share],
+            ],
+            this.overrides
+        );
 
-        this.enokiGeyserEscrow = await deployContract(deployer, GeyserEscrow, [
-            this.enokiGeyserProxy.address,
-        ]);
+        this.enokiGeyserEscrow = await deployContract(
+            deployer,
+            GeyserEscrow,
+            [this.enokiGeyserProxy.address],
+            this.overrides
+        );
 
         await (
             await this.enokiGeyserEscrow.transferOwnership(
-                this.devMultisig.ethersContract.address
+                this.devMultisig.ethersContract.address,
+                this.overrides
             )
         ).wait();
 
         await (
             await this.enokiGeyserProxy.transferOwnership(
-                this.enokiGeyserEscrow.address
+                this.enokiGeyserEscrow.address,
+                this.overrides
             )
         ).wait();
 
-        this.lpTokenVesting = await deployContract(deployer, TokenVesting, [
-            this.enokiDaoAgent.address,
-            getCurrentTimestamp(),
-            config.lpTokenVesting.cliff,
-            config.lpTokenVesting.duration,
-            false,
-        ]);
+        this.lpTokenVesting = await deployContract(
+            deployer,
+            TokenVesting,
+            [
+                this.enokiDaoAgent.address,
+                getCurrentTimestamp(),
+                config.lpTokenVesting.cliff,
+                config.lpTokenVesting.duration,
+                false,
+            ],
+            this.overrides
+        );
 
         console.log(`Deployed DevEthVesting at
             ${this.devFundEthVesting.address}`);
@@ -410,7 +488,7 @@ export class EnokiSystem {
             const dataset = whitelist.slice(start, start + 49);
             console.log(`Set ${i}:
                 ${dataset}`);
-            await (await this.presale.addToWhitelist(dataset)).wait();
+            await (await this.presale.addToWhitelist(dataset, this.overrides)).wait();
         }
     }
 }

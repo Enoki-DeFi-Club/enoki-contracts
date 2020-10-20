@@ -26,7 +26,7 @@
         "test-simulation": "npx buidler test test/simulate-core.ts --network ganache",
         "run-testnet": "sh ./run-testnet.sh",
         "deploy-testnet": "npx buidler run scripts/deploy-testnet.ts --show-stack-traces --no-compile --network ganache",
-        "deploy-mainnet": "npx buidler run scripts/deploy-mainnet.ts --show-stack-traces --no-compile --network ganache"
+        "deploy-mainnet": "npx buidler run scripts/deploy-mainnet.ts --no-compile --network mainnet"
     },
     "dependencies": {
         "@nomiclabs/buidler-etherscan": "^2.1.0",

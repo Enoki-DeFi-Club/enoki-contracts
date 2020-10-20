@@ -29,7 +29,7 @@ const config: BuidlerConfig = {
             timeout: 0,
         },
         mainnet: {
-            url: process.env.MAINNET_NODE_URL,
+            url: process.env.MAINNET_NODE_URL!,
             accounts: {mnemonic: process.env.MNEMONIC!},
             timeout: 0,
         },
@@ -42,7 +42,7 @@ const config: BuidlerConfig = {
         },
     },
     etherscan: {
-        apiKey: process.env.ETHERSCAN_API_KEY
+        apiKey: process.env.ETHERSCAN_API_KEY!
       }
 };
 

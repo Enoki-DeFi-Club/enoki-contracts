@@ -38,13 +38,14 @@ import UniswapV2Pair from "../../dependency-artifacts/uniswap/UniswapV2Pair.json
 import UniswapV2Router from "../../dependency-artifacts/uniswap/UniswapV2Router02.json";
 import UniswapV2Factory from "../../dependency-artifacts/uniswap/UniswapV2Factory.json";
 
+
 import whitelist from "../config/whitelist";
 
 import {colors, LaunchFlags} from "../deploy/deployCore";
 import {Multisig} from "../deploy/Multisig";
 const Web3 = require("web3");
 import dotenv from "dotenv";
-import {getCurrentTimestamp} from "../timeUtils";
+import {getCurrentTimestamp} from "../utils/timeUtils";
 import {EnokiAddresses} from "../deploy/deployed";
 dotenv.config();
 
@@ -648,5 +649,15 @@ export class EnokiSystem {
                 ${dataset}`);
             await (await this.presale.addToWhitelist(dataset, this.overrides)).wait();
         }
+    }
+
+    getPoolByAsset(address: string): SporePoolEntry {
+        const entry = this.missionPools.find(entry => entry.assetAddress === address);
+
+        if (!entry) {
+            throw new Error(`Unable to find pool for ${address}`);
+        }
+
+        return entry;
     }
 }

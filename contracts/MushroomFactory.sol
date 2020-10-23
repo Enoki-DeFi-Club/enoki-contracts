@@ -21,12 +21,16 @@ contract MushroomFactory is Initializable, OwnableUpgradeSafe {
     using MushroomLib for MushroomLib.MushroomType;
     using SafeMath for uint256;
 
+    event MushroomGrown(address recipient, uint256 id, uin256 species, uin256 lifespan);
+
     IERC20 public sporeToken;
     MushroomNFT public mushroomNft;
     MushroomMetadata public mushroomMetadata;
 
     uint256 public costPerMushroom;
     uint256 public mySpecies;
+
+    uint256 public spawnCount;
 
     function initialize(
         IERC20 sporeToken_,
@@ -39,9 +43,16 @@ contract MushroomFactory is Initializable, OwnableUpgradeSafe {
         costPerMushroom = costPerMushroom_;
     }
 
+    /*
+        Each mushroom will have a randomly generated lifespan within it's range. To prevent mushrooms harvested at the same block from having the same properties, a spawnCount seed is added to the block timestamp before hashing the timestamp to generate the lifespan for each individual mushroom.
+
+        Note that block.timestamp is somewhat manipulatable by Miners. If a Miner was a massive ENOKI fan and only harvested when the mined a block they could give themselves mushrooms with longer lifespan than the average. However, the lifespan is still constained by the max lifespan. 
+    */
     function _generateMushroomLifespan(uint256 minLifespan, uint256 maxLifespan) internal returns (uint256) {
         uint256 range = maxLifespan.sub(minLifespan);
-        uint256 fromMin = uint256(keccak256(abi.encodePacked(block.timestamp))) % range;
+        uint256 fromMin = uint256(keccak256(abi.encodePacked(block.timestamp.add(spawnCount)))) % range;
+        spawnCount = spawnCount.add(1);
+
         return minLifespan.add(fromMin);
     }
 
@@ -50,7 +61,10 @@ contract MushroomFactory is Initializable, OwnableUpgradeSafe {
         MushroomLib.MushroomType memory species = mushroomNft.getSpecies(mySpecies);
         for (uint256 i = 0; i < numMushrooms; i++) {
             uint256 nextId = mushroomNft.totalSupply().add(1);
-            mushroomNft.mint(recipient, nextId, mySpecies, _generateMushroomLifespan(species.minLifespan, species.maxLifespan));
+
+            uint256 lifespan = _generateMushroomLifespan(species.minLifespan, species.maxLifespan);
+            mushroomNft.mint(recipient, nextId, mySpecies, lifespan);
+            emit MushroomGrown(recipient, nextId, mySpecies, lifespan);
         }
     }
 }

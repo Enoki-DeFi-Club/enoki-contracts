@@ -39,22 +39,16 @@ import {daysToSeconds, LaunchConfig, WHALES} from "../scripts/config/launchConfi
 import {deployCore} from "../scripts/deploy/deployCore";
 import {Operation} from "../scripts/deploy/Multisig";
 import {EnokiSystem} from "../scripts/systems/EnokiSystem";
-import {getCurrentTimestamp, increaseTime} from "../scripts/timeUtils";
-import SporePresale from "../artifacts/SporePresale.json";
-import SporeToken from "../artifacts/SporeToken.json";
-import IERC20 from "../artifacts/IERC20.json";
-import GeyserEscrow from "../artifacts/GeyserEscrow.json";
-import Mission from "../artifacts/Mission.json";
+import {getCurrentTimestamp, increaseTime} from "../scripts/utils/timeUtils";
 
-import UniswapV2Router from "../dependency-artifacts/uniswap/UniswapV2Router02.json";
-import {json} from "@nomiclabs/buidler/internal/core/params/argumentTypes";
-
-const presaleIface = new utils.Interface(SporePresale.abi);
-const sporeTokenIface = new utils.Interface(SporeToken.abi);
-const erc20Iface = new utils.Interface(IERC20.abi);
-const uniswapRouterIface = new utils.Interface(UniswapV2Router.abi);
-const geyserEscrowIface = new utils.Interface(GeyserEscrow.abi);
-const missionIface = new utils.Interface(Mission.abi);
+import {
+    presaleIface,
+    sporeTokenIface,
+    erc20Iface,
+    uniswapRouterIface,
+    geyserEscrowIface,
+    missionIface,
+} from "../scripts/utils/interfaces";
 
 describe("Simulate Core", function () {
     let enoki: EnokiSystem;
@@ -528,7 +522,9 @@ describe("Simulate Core", function () {
         );
 
         expect(afterEscrow, "after, escrow").to.be.equal(utils.parseEther("0"));
-        expect(await enoki.enokiToken.balanceOf(enoki.enokiGeyserProxy.address)).to.be.equal(utils.parseEther("12600"));
+        expect(
+            await enoki.enokiToken.balanceOf(enoki.enokiGeyserProxy.address)
+        ).to.be.equal(utils.parseEther("12600"));
         expect(await enoki.enokiGeyserProxy.totalLocked()).to.be.equal(
             utils.parseEther("12600")
         );

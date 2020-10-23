@@ -5,11 +5,11 @@ import ProxyFactory from "../../dependency-artifacts/gnosis-safe/ProxyFactory.js
 
 import {deployContract} from "ethereum-waffle";
 import {execTransaction} from "../gnosis-safe/signTypedData.js";
-import { string } from "@nomiclabs/buidler/internal/core/params/argumentTypes";
+import {string} from "@nomiclabs/buidler/internal/core/params/argumentTypes";
 
 export enum Operation {
     CALL = 0,
-    CREATE = 2
+    CREATE = 2,
 }
 
 export interface ExecTransactionParams {
@@ -51,7 +51,7 @@ export class Multisig {
         const multisig = new Multisig(web3, jsonRpcProvider);
 
         const masterCopy = await deployContract(signer, TestGnosisSafe, undefined, {
-            gasLimit: 6200000
+            gasLimit: 6200000,
         });
 
         const proxyFactory = new Contract(
@@ -67,7 +67,8 @@ export class Multisig {
         await (await proxyFactory.createProxy(masterCopy.address, encoded)).wait();
 
         const events = await proxyFactory.queryFilter(
-            proxyFactory.filters.ProxyCreation(), "latest"
+            proxyFactory.filters.ProxyCreation(),
+            "latest"
         );
 
         console.log(`Created Test Gnosis Safe Instance ${events[0]?.args?.proxy}`);
@@ -100,6 +101,23 @@ export class Multisig {
         return multisig;
     }
 
+    /* 
+        Testing only: Use internal call that skips signature verification
+        Can only be executed 'as' the contract address, using ganache --unlock option
+        Calls: function execute(address to, uint256 value, bytes memory data, Enum.Operation operation, uint256 txGas)
+    */
+    async execDirectly(params: ExecTransactionParams) {
+        return await this.contract.methods
+            .execute(
+                params.to,
+                params.value ? params.value.toString() : "0",
+                params.data ? params.data : "0x",
+                params.operation ? String(params.operation) : String(Operation.CALL),
+                this.web3.utils.toWei("2000000") //Static gas
+            )
+            .send({from: this.contract.address});
+    }
+
     async execTransaction(params: ExecTransactionParams) {
         if (!this.testmode) {
             throw new Error(
@@ -123,10 +141,9 @@ export class Multisig {
             "0x",
             {
                 gasPrice: utils.parseUnits("100", "gwei"),
-                gasLimit: 6000000
+                gasLimit: 6000000,
             }
-        )
-
+        );
 
         const result = await tx.wait();
         return result;

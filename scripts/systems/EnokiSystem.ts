@@ -16,10 +16,13 @@ import SporePresale from "../../artifacts/SporePresale.json";
 import GeyserEscrow from "../../artifacts/GeyserEscrow.json";
 
 import EthVesting from "../../artifacts/EthVesting.json";
-import ApprovedContractList from "../../artifacts/ApprovedContractList.json";
+import BannedContractList from "../../artifacts/BannedContractList.json";
 
 import TokenVesting from "../../artifacts/TokenVesting.json";
+import SporeVesting from "../../artifacts/SporeVesting.json";
 import PaymentSplitter from "../../artifacts/PaymentSplitter.json";
+import SporePool from "../../artifacts/SporePool.json";
+import MushroomFactory from "../../artifacts/MushroomFactory.json";
 
 import Agent from "../../dependency-artifacts/aragon/Agent.json";
 import MiniMeToken from "../../dependency-artifacts/aragon/MiniMeToken.json";
@@ -45,9 +48,19 @@ import {getCurrentTimestamp} from "../timeUtils";
 import {EnokiAddresses} from "../deploy/deployed";
 dotenv.config();
 
+const sporePoolIface = new utils.Interface(SporePool.abi);
+const mushroomFactoryIface = new utils.Interface(MushroomFactory.abi);
+
 export interface UniswapPool {
     assetName: string;
     contract: Contract;
+}
+
+export interface SporePoolEntry {
+    assetName: string;
+    assetAddress: string;
+    sporePool: Contract;
+    mushroomFactory: Contract;
 }
 
 export class EnokiSystem {
@@ -62,7 +75,12 @@ export class EnokiSystem {
 
     lpTokenVesting!: Contract;
 
-    approvedContractList!: Contract;
+    sporePoolLogic!: Contract;
+    mushroomFactoryLogic!: Contract;
+
+    bannedContractList!: Contract;
+
+    missionPools!: SporePoolEntry[];
 
     // Enoki Distribution
     enokiGeyserEscrow!: Contract;
@@ -113,7 +131,7 @@ export class EnokiSystem {
         // For local testnet fork, use --unlock option for accounts to sign with
         this.web3 = new Web3("http://localhost:8545");
         this.flags = flags;
-        this.fastGasPrice = utils.parseUnits("170", "gwei");
+        this.fastGasPrice = utils.parseUnits("100", "gwei");
         console.log(`Fast Gas Price: ${this.fastGasPrice.toString()}`);
         this.overrides = {
             gasPrice: this.fastGasPrice,
@@ -128,19 +146,55 @@ export class EnokiSystem {
         deployed: EnokiAddresses
     ): EnokiSystem {
         const enoki = new EnokiSystem(config, provider, deployer, flags);
-        enoki.sporeToken= new Contract(deployed.sporeToken, SporeToken.abi,deployer);
-        enoki.presale= new Contract(deployed.presale, SporePresale.abi,deployer);
-        enoki.missionsProxy= new Contract(deployed.missionsProxy, Mission.abi,deployer);
-        enoki.missionsLogic= new Contract(deployed.missionsLogic, Mission.abi,deployer);
-        enoki.lpTokenVesting= new Contract(deployed.lpTokenVesting, TokenVesting.abi,deployer);
-        enoki.approvedContractList= new Contract(deployed.approvedContractList, ApprovedContractList.abi,deployer);
-        enoki.enokiGeyserEscrow= new Contract(deployed.enokiGeyserEscrow, GeyserEscrow.abi,deployer);
-        enoki.enokiGeyserProxy= new Contract(deployed.sporeToken, EnokiGeyser.abi,deployer);
-        enoki.enokiGeyserLogic= new Contract(deployed.sporeToken, EnokiGeyser.abi,deployer);
-        enoki.enokiToken= new Contract(deployed.sporeToken, MiniMeToken.abi,deployer);
-        enoki.enokiDaoAgent= new Contract(deployed.sporeToken, Agent.abi,deployer);
-        enoki.devFundPaymentSplitter= new Contract(deployed.sporeToken, PaymentSplitter.abi,deployer);
-        enoki.devFundEthVesting= new Contract(deployed.sporeToken, EthVesting.abi,deployer);
+        enoki.sporeToken = new Contract(deployed.sporeToken, SporeToken.abi, deployer);
+        enoki.presale = new Contract(deployed.presale, SporePresale.abi, deployer);
+        enoki.missionsProxy = new Contract(
+            deployed.missionsProxy,
+            Mission.abi,
+            deployer
+        );
+        enoki.missionsLogic = new Contract(
+            deployed.missionsLogic,
+            Mission.abi,
+            deployer
+        );
+        enoki.lpTokenVesting = new Contract(
+            deployed.lpTokenVesting,
+            TokenVesting.abi,
+            deployer
+        );
+        enoki.bannedContractList = new Contract(
+            deployed.bannedContractList,
+            BannedContractList.abi,
+            deployer
+        );
+        enoki.enokiGeyserEscrow = new Contract(
+            deployed.enokiGeyserEscrow,
+            GeyserEscrow.abi,
+            deployer
+        );
+        enoki.enokiGeyserProxy = new Contract(
+            deployed.enokiGeyserProxy,
+            EnokiGeyser.abi,
+            deployer
+        );
+        enoki.enokiGeyserLogic = new Contract(
+            deployed.enokiGeyserLogic,
+            EnokiGeyser.abi,
+            deployer
+        );
+        enoki.enokiToken = new Contract(deployed.enokiToken, MiniMeToken.abi, deployer);
+        enoki.enokiDaoAgent = new Contract(deployed.enokiDaoAgent, Agent.abi, deployer);
+        enoki.devFundPaymentSplitter = new Contract(
+            deployed.devFundPaymentSplitter,
+            PaymentSplitter.abi,
+            deployer
+        );
+        enoki.devFundEthVesting = new Contract(
+            deployed.devFundEthVesting,
+            EthVesting.abi,
+            deployer
+        );
         enoki.devMultisig = Multisig.fromAddress(
             enoki.web3,
             provider,
@@ -149,7 +203,7 @@ export class EnokiSystem {
             config.devMultisig.owners,
             flags.testmode
         );
-        enoki.proxyAdmin= new Contract(deployed.sporeToken, SporeToken.abi,deployer);
+        enoki.proxyAdmin = new Contract(deployed.proxyAdmin, SporeToken.abi, deployer);
 
         return enoki;
     }
@@ -212,22 +266,22 @@ export class EnokiSystem {
 
     async deployApprovedContractList() {
         const {config, deployer} = this;
-        this.approvedContractList = await deployContract(
+        this.bannedContractList = await deployContract(
             deployer,
-            ApprovedContractList,
+            BannedContractList,
             undefined,
             this.overrides
         );
 
         await (
-            await this.approvedContractList.transferOwnership(
+            await this.bannedContractList.transferOwnership(
                 this.devMultisig.ethersContract.address,
                 this.overrides
             )
         ).wait();
 
         console.log(`Deployed Approved Contracts List: 
-            ${this.approvedContractList.address}
+            ${this.bannedContractList.address}
         `);
     }
 
@@ -381,7 +435,7 @@ export class EnokiSystem {
             config.geyserParams.maxStakesPerAddress,
             this.devMultisig.ethersContract.address,
             config.geyserParams.devRewardPercentage,
-            this.approvedContractList.address,
+            this.bannedContractList.address,
             this.devMultisig.ethersContract.address,
         ]);
 
@@ -404,12 +458,13 @@ export class EnokiSystem {
     async deployLpVesting(duration: BigNumber) {
         const {config, deployer} = this;
 
+        const deployTime = getCurrentTimestamp() + 100;
         this.lpTokenVesting = await deployContract(
             deployer,
             TokenVesting,
             [
                 this.enokiDaoAgent.address,
-                getCurrentTimestamp(),
+                deployTime,
                 config.lpTokenVesting.cliff,
                 duration,
                 false,
@@ -418,7 +473,55 @@ export class EnokiSystem {
         );
 
         console.log(`Deployed LpTokenVesting
-            ${this.lpTokenVesting.address}`);
+            contract: ${this.lpTokenVesting.address}
+            beneficiary: ${this.enokiDaoAgent.address}
+            start: ${deployTime.toString()}
+            cliff: ${config.lpTokenVesting.cliff.toString()}
+            duration: ${duration.toString()}
+            revocable: ${false}
+        `);
+    }
+
+    /*
+        Each pool will be a proxy to reduce gas costs
+    */
+    async deployMission0Pools() {
+        const {config, deployer} = this;
+
+        this.sporePoolLogic = await deployContract(deployer, SporePool);
+        this.mushroomFactoryLogic = await deployContract(deployer, MushroomFactory);
+
+        for (const poolConfig of config.pools) {
+            // Deploy Mushroom factory
+
+            const factoryParmas = mushroomFactoryIface.encodeFunctionData(
+                "initialize",
+                [
+                    this.sporeToken.address,
+                    constants.AddressZero,
+                    poolConfig.mushroomSpecies,
+                ]
+            );
+
+            const encoded = sporePoolIface.encodeFunctionData("initialize", [
+                this.devMultisig.ethersContract.address,
+                this.sporeToken.address,
+                poolConfig.assetAddress,
+            ]);
+
+            const sporePool = await deployContract(
+                deployer,
+                AdminUpgradeabilityProxy,
+                [this.sporePoolLogic.address, this.proxyAdmin.address, encoded],
+                this.overrides
+            );
+
+            this.missionPools.push({
+                assetName: poolConfig.assetName,
+                assetAddress: poolConfig.assetAddress,
+                contract: new Contract(proxy.address, SporePool.abi, deployer),
+            });
+        }
     }
 
     async deployVestingInfrastructure() {

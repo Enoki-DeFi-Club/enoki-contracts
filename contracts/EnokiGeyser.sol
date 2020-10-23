@@ -10,6 +10,7 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import "./TokenPool.sol";
 import "./Defensible.sol";
@@ -36,7 +37,7 @@ import "./metadata/MushroomMetadata.sol";
  *      More background and motivation available at:
  *      https://github.com/ampleforth/RFCs/blob/master/RFCs/rfc-1.md
  */
-contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
+contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuard, Defensible {
     using SafeMath for uint256;
     using MushroomLib for MushroomLib.MushroomData;
     using MushroomLib for MushroomLib.MushroomType;
@@ -81,7 +82,7 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
     address public devRewardAddress;
 
     address public admin;
-    ApprovedContractList public approvedContractList;
+    BannedContractList public bannedContractList;
 
     //
     // User accounting state
@@ -154,7 +155,7 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
 
         // The dev reward must be some fraction of the max. (i.e. <= 100%)
         require(devRewardPercentage_ <= MAX_PERCENTAGE, "EnokiGeyser: dev reward too high");
-        
+
         __Ownable_init();
 
         _unlockedPool = new TokenPool(distributionToken);
@@ -170,7 +171,7 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
 
         admin = admin_;
 
-        approvedContractList = ApprovedContractList(approvedContractList_);
+        bannedContractList = BannedContractList(approvedContractList_);
     }
 
     // TODO: Add a method for per-index staking access
@@ -208,7 +209,7 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
         address nftContract,
         uint256 nftIndex,
         bytes calldata data
-    ) external defend(approvedContractList) {
+    ) external defend(bannedContractList) {
         require(isNftStakeable(nftContract), "EnokiGeyser: nft not stakeable");
         _stakeFor(msg.sender, msg.sender, nftContract, nftIndex);
     }
@@ -319,21 +320,21 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
             uint256 stakingShareSecondsToBurn = lastStake.stakingShares.mul(lifespanUsed);
             rewardAmount = computeNewReward(rewardAmount, stakingShareSecondsToBurn, lifespanUsed);
 
-            bool toBurn = false;
+            bool deadMushroom = false;
 
-            if (metadata.lifespan <= lifespanUsed) {
+            if (lifespanUsed >= metadata.lifespan) {
                 lifespanUsed = metadata.lifespan;
-                toBurn = true;
+                deadMushroom = true;
             }
 
             // Update global aomunt staked
             totalStrengthStaked = totalStrengthStaked.sub(metadata.strength);
 
-            if (toBurn) {
-                // Burn dead mushrooms
+            // Burn dead mushrooms, if they can be burnt. Otherwise, they can still be withdrawn with 0 lifespan.
+            if (deadMushroom && mushroomMetadata.isBurnable(lastStake.nftContract, lastStake.nftIndex)) {
                 MushroomNFT(lastStake.nftContract).burn(lastStake.nftIndex);
             } else {
-                // If still alive, reduce lifespan of mushroom and return to user
+                // If still alive, reduce lifespan of mushroom and return to user. If not burnable, return with 0 lifespan.
                 mushroomMetadata.setMushroomLifespan(lastStake.nftContract, lastStake.nftIndex, metadata.lifespan.sub(lifespanUsed), "");
                 IERC721(lastStake.nftContract).transferFrom(address(this), msg.sender, lastStake.nftIndex);
             }

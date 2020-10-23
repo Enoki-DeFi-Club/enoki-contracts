@@ -753,7 +753,7 @@ contract Ownable is Context {
 }
 
 
-// Dependency file: contracts/ApprovedContractList.sol
+// Dependency file: contracts/BannedContractList.sol
 
 // pragma solidity ^0.6.0;
 
@@ -763,7 +763,7 @@ contract Ownable is Context {
     Approve Contracts to interact with pools.
     (All contracts are barred from interacting with pools by default.)
 */
-contract ApprovedContractList is Ownable {
+contract BannedContractList is Ownable {
     mapping (address => bool) approved;
     function isApproved(address toCheck) external returns (bool) {
         return approved[toCheck];
@@ -781,16 +781,16 @@ contract ApprovedContractList is Ownable {
 
 // pragma solidity ^0.6.0;
 
-// import "contracts/ApprovedContractList.sol";
+// import "contracts/BannedContractList.sol";
 
 /*
     Prevent smart contracts from calling functions unless approved by the specified whitelist.
 */
 contract Defensible {
  // Only smart contracts will be affected by this modifier
-  modifier defend(ApprovedContractList approvedContractList) {
+  modifier defend(BannedContractList bannedContractList) {
     require(
-      (msg.sender == tx.origin) || approvedContractList.isApproved(msg.sender),
+      (msg.sender == tx.origin) || bannedContractList.isApproved(msg.sender),
       "This smart contract has not been approved"
     );
     _;
@@ -1239,7 +1239,7 @@ pragma experimental ABIEncoderV2;
 // import "contracts/interfaces/IMushroomFactory.sol";
 // import "contracts/interfaces/IMission.sol";
 // import "contracts/SporeToken.sol";
-// import "contracts/ApprovedContractList.sol";
+// import "contracts/BannedContractList.sol";
 
 contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
     using SafeMath for uint256;
@@ -1267,7 +1267,7 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
 
     IMushroomFactory public mushroomFactory;
     IMission public mission;
-    ApprovedContractList public approvedContractList;
+    BannedContractList public bannedContractList;
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -1285,7 +1285,7 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
         stakingToken = IERC20(_stakingToken);
         mushroomFactory = IMushroomFactory(_mushroomFactory);
         mission = IMission(_mission);
-        approvedContractList = ApprovedContractList(_approvedContractList);
+        bannedContractList = BannedContractList(_approvedContractList);
 
         devRewardPercentage = _devRewardPercentage;
         devRewardAddress = _devRewardAddress;
@@ -1322,7 +1322,7 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
-    function stake(uint256 amount) external nonReentrant defend(approvedContractList) whenNotPaused updateReward(msg.sender) {
+    function stake(uint256 amount) external nonReentrant defend(bannedContractList) whenNotPaused updateReward(msg.sender) {
         require(amount > 0, "Cannot stake 0");
         _totalSupply = _totalSupply.add(amount);
         _balances[msg.sender] = _balances[msg.sender].add(amount);

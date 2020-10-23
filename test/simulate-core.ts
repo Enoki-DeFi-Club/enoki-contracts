@@ -528,7 +528,7 @@ describe("Simulate Core", function () {
         );
 
         expect(afterEscrow, "after, escrow").to.be.equal(utils.parseEther("0"));
-
+        expect(await enoki.enokiToken.balanceOf(enoki.enokiGeyserProxy.address)).to.be.equal(utils.parseEther("12600"));
         expect(await enoki.enokiGeyserProxy.totalLocked()).to.be.equal(
             utils.parseEther("12600")
         );

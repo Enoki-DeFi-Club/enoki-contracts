@@ -564,7 +564,7 @@ contract TokenPool is Ownable {
     }
 }
 
-// Dependency file: contracts/ApprovedContractList.sol
+// Dependency file: contracts/BannedContractList.sol
 
 // pragma solidity ^0.6.0;
 
@@ -574,7 +574,7 @@ contract TokenPool is Ownable {
     Approve Contracts to interact with pools.
     (All contracts are barred from interacting with pools by default.)
 */
-contract ApprovedContractList is Ownable {
+contract BannedContractList is Ownable {
     mapping (address => bool) approved;
     function isApproved(address toCheck) external returns (bool) {
         return approved[toCheck];
@@ -592,16 +592,16 @@ contract ApprovedContractList is Ownable {
 
 // pragma solidity ^0.6.0;
 
-// import "contracts/ApprovedContractList.sol";
+// import "contracts/BannedContractList.sol";
 
 /*
     Prevent smart contracts from calling functions unless approved by the specified whitelist.
 */
 contract Defensible {
  // Only smart contracts will be affected by this modifier
-  modifier defend(ApprovedContractList approvedContractList) {
+  modifier defend(BannedContractList bannedContractList) {
     require(
-      (msg.sender == tx.origin) || approvedContractList.isApproved(msg.sender),
+      (msg.sender == tx.origin) || bannedContractList.isApproved(msg.sender),
       "This smart contract has not been approved"
     );
     _;
@@ -2327,7 +2327,7 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
     address public devRewardAddress;
 
     address public admin;
-    ApprovedContractList public approvedContractList;
+    BannedContractList public bannedContractList;
 
     //
     // User accounting state
@@ -2416,7 +2416,7 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
 
         admin = admin_;
 
-        approvedContractList = ApprovedContractList(approvedContractList_);
+        bannedContractList = BannedContractList(approvedContractList_);
     }
 
     // TODO: Add a method for per-index staking access
@@ -2454,7 +2454,7 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
         address nftContract,
         uint256 nftIndex,
         bytes calldata data
-    ) external defend(approvedContractList) {
+    ) external defend(bannedContractList) {
         require(isNftStakeable(nftContract), "EnokiGeyser: nft not stakeable");
         _stakeFor(msg.sender, msg.sender, nftContract, nftIndex);
     }

@@ -27,6 +27,12 @@ contract MushroomResolver is Initializable, OwnableUpgradeSafe, MetadataResolver
         MushroomLib.MushroomData memory mData = mushroomNft.getMushroomData(index);
         return mData;
     }
+
+    // All Mushrooms are burnable
+    function isBurnable(uint256 index) external override view returns (bool) {
+        return true;
+    }
+
     function setMushroomLifespan(uint256 index, uint256 lifespan, bytes calldata data) external override {
         mushroomNft.setMushroomLifespan(index, lifespan);
     }

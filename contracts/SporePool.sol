@@ -9,23 +9,23 @@ import "@openzeppelin/contracts/math/Math.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-ethereum-package/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-ethereum-package/utils/Pausable.sol";
+import "@openzeppelin/contracts-ethereum-package/access/Ownable.sol";
 
 import "./Defensible.sol";
 import "./interfaces/IMushroomFactory.sol";
 import "./interfaces/IMission.sol";
 import "./SporeToken.sol";
-import "./ApprovedContractList.sol";
+import "./BannedContractList.sol";
 
-contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
+contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUpgradeSafe, Defensible {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
     /* ========== STATE VARIABLES ========== */
 
-    SporeToken public rewardsToken;
+    SporeToken public sporeToken;
     IERC20 public stakingToken;
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
@@ -45,28 +45,61 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
 
     IMushroomFactory public mushroomFactory;
     IMission public mission;
-    ApprovedContractList public approvedContractList;
+    BannedContractList public bannedContractList;
+
+    uint256 public stakingEnabledTime;
+
+    uint256 public votingEnabledTime;
+    uint256 public nextVoteAllowedAt;
+    uint256 public lastVoteNonce;
+    uint256 public voteDuration;
+
+    address public enokiDaoAgent;
 
     /* ========== CONSTRUCTOR ========== */
 
-    constructor(
+    function initialize(
         address _owner,
-        address _rewardsToken,
+        address _sporeToken,
         address _stakingToken,
         address _mushroomFactory,
         address _mission,
         address _approvedContractList,
-        uint256 _devRewardPercentage,
-        address _devRewardAddress
-    ) public {
-        rewardsToken = SporeToken(_rewardsToken);
+        address _devRewardAddress,
+        address daoAgent_,
+        uint256[5] memory uintParams
+    ) public initializer {
+        __Context_init_unchained();
+        __Pausable_init_unchained();
+        __ReentrancyGuard_init_unchained();
+        __Ownable_init_unchained();
+
+        sporeToken = SporeToken(_sporeToken);
         stakingToken = IERC20(_stakingToken);
         mushroomFactory = IMushroomFactory(_mushroomFactory);
         mission = IMission(_mission);
-        approvedContractList = ApprovedContractList(_approvedContractList);
+        bannedContractList = BannedContractList(_approvedContractList);
 
-        devRewardPercentage = _devRewardPercentage;
+        /*
+        [0] uint256 _devRewardPercentage,
+        [1] uint256 stakingEnabledTime_,
+        [2] uint256 votingEnabledTime_,
+        [3] uint256 voteDuration_,
+        [4] uint256 initialRewardRate_,
+        */
+
+        rewardRate = uintParams[4];
+
+        devRewardPercentage = uintParams[0];
         devRewardAddress = _devRewardAddress;
+
+        stakingEnabledTime = uintParams[1];
+        votingEnabledTime = uintParams[2];
+        nextVoteAllowedAt = uintParams[2];
+        voteDuration = uintParams[3];
+        lastVoteNonce = 0;
+
+        enokiDaoAgent = daoAgent_;
     }
 
     /* ========== VIEWS ========== */
@@ -100,7 +133,7 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
-    function stake(uint256 amount) external nonReentrant defend(approvedContractList) whenNotPaused updateReward(msg.sender) {
+    function stake(uint256 amount) external nonReentrant defend(bannedContractList) whenNotPaused updateReward(msg.sender) {
         require(amount > 0, "Cannot stake 0");
         _totalSupply = _totalSupply.add(amount);
         _balances[msg.sender] = _balances[msg.sender].add(amount);
@@ -129,7 +162,7 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
                 require(reward >= totalCost, "Not enough rewards to grow the number of mushrooms specified");
 
                 uint256 toDev = totalCost.mul(devRewardPercentage).div(MAX_PERCENTAGE);
-                rewardsToken.burn(totalCost.sub(toDev));
+                sporeToken.burn(totalCost.sub(toDev));
 
                 if (toDev > 0) {
                     mission.sendSpores(devRewardAddress, toDev);
@@ -141,7 +174,7 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
 
             if (remainingReward > 0) {
                 // TODO: Add safe ERC20 features to spore token
-                // rewardsToken.safeTransfer(msg.sender, remainingReward);
+                // sporeToken.safeTransfer(msg.sender, remainingReward);
 
                 mission.sendSpores(msg.sender, remainingReward);
                 emit RewardPaid(msg.sender, remainingReward);
@@ -154,33 +187,39 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
         harvest(0);
     }
 
-    /* ========== RESTRICTED FUNCTIONS ========== */
+    /*
+        Votes with a given nonce invalidate other votes with the same nonce
+        This ensures only one rate vote can pass for a given time period
+    */
 
-    function notifyRewardAmount(uint256 reward) external onlyOwner updateReward(address(0)) {
-        if (block.timestamp >= periodFinish) {
-            rewardRate = reward.div(rewardsDuration);
-        } else {
-            uint256 remaining = periodFinish.sub(block.timestamp);
-            uint256 leftover = remaining.mul(rewardRate);
-            rewardRate = reward.add(leftover).div(rewardsDuration);
-        }
+    function halveRate(uint256 voteNonce) public onlyDAO {
+        require(now >= votingEnabledTime, "SporePool: Voting not enabled yet");
+        require(now >= nextVoteAllowedAt, "SporePool: Previous rate change vote too soon");
+        require(voteNonce == lastVoteNonce.add(1), "SporePool: Incorrect vote nonce");
 
-        // Ensure the provided reward amount is not more than the balance in the contract.
-        // This keeps the reward rate in the right range, preventing overflows due to
-        // very high values of rewardRate in the earned and rewardsPerToken functions;
-        // Reward + leftover must be less than 2^256 / 10^18 to avoid overflow.
-        uint256 balance = rewardsToken.balanceOf(address(this));
-        require(rewardRate <= balance.div(rewardsDuration), "Provided reward too high");
+        rewardRate = rewardRate.div(2);
 
-        lastUpdateTime = block.timestamp;
-        periodFinish = block.timestamp.add(rewardsDuration);
-        emit RewardAdded(reward);
+        nextVoteAllowedAt = now.add(voteDuration);
+        lastVoteNonce = voteNonce.add(1);
     }
+
+    function doubleRate(uint256 voteNonce) public onlyDAO {
+        require(now >= votingEnabledTime, "SporePool: Voting not enabled yet");
+        require(now >= nextVoteAllowedAt, "SporePool: Previous rate change vote too soon");
+        require(voteNonce == lastVoteNonce.add(1), "SporePool: Incorrect vote nonce");
+
+        rewardRate = rewardRate.mul(2);
+
+        nextVoteAllowedAt = now.add(voteDuration);
+        lastVoteNonce = voteNonce.add(1);
+    }
+
+    /* ========== RESTRICTED FUNCTIONS ========== */
 
     // Added to support recovering LP Rewards from other systems such as BAL to be distributed to holders
     function recoverERC20(address tokenAddress, uint256 tokenAmount) external onlyOwner {
         // Cannot recover the staking token or the rewards token
-        require(tokenAddress != address(stakingToken) && tokenAddress != address(rewardsToken), "Cannot withdraw the staking or rewards tokens");
+        require(tokenAddress != address(stakingToken) && tokenAddress != address(sporeToken), "Cannot withdraw the staking or rewards tokens");
 
         //TODO: Add safeTransfer
         IERC20(tokenAddress).transfer(owner(), tokenAmount);
@@ -202,6 +241,11 @@ contract SporePool is Ownable, ReentrancyGuard, Pausable, Defensible {
             rewards[account] = earned(account);
             userRewardPerTokenPaid[account] = rewardPerTokenStored;
         }
+        _;
+    }
+
+    modifier onlyDAO {
+        require(msg.sender == enokiDaoAgent, "SporePool: Only Enoki DAO agent can call");
         _;
     }
 

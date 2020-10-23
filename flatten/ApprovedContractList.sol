@@ -97,7 +97,7 @@ contract Ownable is Context {
 }
 
 
-// Root file: contracts/ApprovedContractList.sol
+// Root file: contracts/BannedContractList.sol
 
 pragma solidity ^0.6.0;
 
@@ -107,7 +107,7 @@ pragma solidity ^0.6.0;
     Approve Contracts to interact with pools.
     (All contracts are barred from interacting with pools by default.)
 */
-contract ApprovedContractList is Ownable {
+contract BannedContractList is Ownable {
     mapping (address => bool) approved;
     function isApproved(address toCheck) external returns (bool) {
         return approved[toCheck];

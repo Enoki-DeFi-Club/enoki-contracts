@@ -11,6 +11,11 @@ import "./MushroomNFT.sol";
 import "./MushroomLib.sol";
 import "./metadata/MushroomMetadata.sol";
 
+/*
+    MushroomFactories manage the mushroom generation logic for pools
+    Each pool will have it's own factory to generate mushrooms according
+    to its' powers.
+*/
 contract MushroomFactory is Initializable, OwnableUpgradeSafe {
     using MushroomLib for MushroomLib.MushroomData;
     using MushroomLib for MushroomLib.MushroomType;
@@ -23,11 +28,15 @@ contract MushroomFactory is Initializable, OwnableUpgradeSafe {
     uint256 public costPerMushroom;
     uint256 public mySpecies;
 
-    function initialize(IERC20 sporeToken_, MushroomNFT mushroomNft_, uint256 costPerMushroom_) public initializer {
+    function initialize(
+        IERC20 sporeToken_,
+        MushroomNFT mushroomNft_,
+        uint256 costPerMushroom_
+    ) public initializer {
         __Ownable_init();
-        sporeToken=sporeToken_;
-        mushroomNft=mushroomNft_;
-        costPerMushroom=costPerMushroom_;
+        sporeToken = sporeToken_;
+        mushroomNft = mushroomNft_;
+        costPerMushroom = costPerMushroom_;
     }
 
     function _generateMushroomLifespan(uint256 minLifespan, uint256 maxLifespan) internal returns (uint256) {

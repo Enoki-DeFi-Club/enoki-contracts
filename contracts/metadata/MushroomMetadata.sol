@@ -33,6 +33,14 @@ contract MushroomMetadata is Ownable {
         return mushroomData;
     }
 
+    function isBurnable(
+        address nftContract,
+        uint256 nftIndex
+    ) external view onlyWithMetadataResolver(nftContract) returns (bool) {
+        MetadataResolver resolver = MetadataResolver(metadataResolvers[nftContract]);
+        return resolver.isBurnable(nftIndex);
+    }
+
     function setMushroomLifespan(
         address nftContract,
         uint256 nftIndex,

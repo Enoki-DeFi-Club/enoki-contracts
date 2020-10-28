@@ -4,6 +4,5 @@ import {BigNumber, utils} from "ethers";
 import {expect} from "chai";
 import { getCurrentTimestamp } from "./utils/timeUtils";
 
-export async function confirmPools(enoki: EnokiSystem, config: LaunchConfig) {
-
+export async function confirmNewGeyser(enoki: EnokiSystem, config: LaunchConfig) {
 }

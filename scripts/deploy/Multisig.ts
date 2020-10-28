@@ -4,8 +4,7 @@ import TestGnosisSafe from "../../dependency-artifacts/gnosis-safe/TestGnosisSaf
 import ProxyFactory from "../../dependency-artifacts/gnosis-safe/ProxyFactory.json";
 
 import {deployContract} from "ethereum-waffle";
-import {execTransaction} from "../gnosis-safe/signTypedData.js";
-import {string} from "@nomiclabs/buidler/internal/core/params/argumentTypes";
+import {logbn, logobj} from "../utils/shorthand";
 
 export enum Operation {
     CALL = 0,
@@ -101,21 +100,55 @@ export class Multisig {
         return multisig;
     }
 
+    async signTransaction(
+        signer: Signer,
+        params: ExecTransactionParams
+    ): Promise<string> {
+        const nonce = await this.ethersContract.nonce();
+        const signerAddress = await signer.getAddress();
+
+        /*
+            padded address + 32 empty bytes + 01 (sig type)
+        */
+        const sig =
+            "0x" +
+            "000000000000000000000000" +
+            signerAddress.replace("0x", "") +
+            "0000000000000000000000000000000000000000000000000000000000000000" +
+            "01";
+
+        // We don't have to sign this as we are the transaction sender
+        // const txHash = await this.ethersContract.getTransactionHash(
+        //     params.to,
+        //     params.value ? params.value : utils.parseEther("0"),
+        //     params.data ? params.data : "0x",
+        //     params.operation ? params.operation : Operation.CALL,
+        //     BigNumber.from(2000000),
+        //     BigNumber.from(2000000),
+        //     utils.parseUnits("100", "gwei"),
+        //     constants.AddressZero,
+        //     this.owners[0],
+        //     nonce
+        // )
+
+        // const signed = await signer.signMessage(txHash);
+        return sig;
+    }
+
     /* 
-        Testing only: Use internal call that skips signature verification
-        Can only be executed 'as' the contract address, using ganache --unlock option
-        Calls: function execute(address to, uint256 value, bytes memory data, Enum.Operation operation, uint256 txGas)
+        Testing only: Change signature threshold for testing purposes
+        Can only be executed with the contract address unlocked using ganache --unlock option
     */
-    async execDirectly(params: ExecTransactionParams) {
-        return await this.contract.methods
-            .execute(
-                params.to,
-                params.value ? params.value.toString() : "0",
-                params.data ? params.data : "0x",
-                params.operation ? String(params.operation) : String(Operation.CALL),
-                this.web3.utils.toWei("2000000") //Static gas
-            )
-            .send({from: this.contract.address});
+    async execDirectly(params: ExecTransactionParams, signer: Signer) {
+        // Change threshold to one: We only need the private key of one owner to execute operation
+        await this.contract.methods
+            .changeThreshold(1)
+            .send({from: this.ethersContract.address});
+
+        const signature = await this.signTransaction(signer, params);
+        params.signatures = signature;
+
+        return await this.execTransaction(params);
     }
 
     async execTransaction(params: ExecTransactionParams) {
@@ -138,7 +171,7 @@ export class Multisig {
             utils.parseUnits("100", "gwei"),
             constants.AddressZero,
             owners[0],
-            "0x",
+            params.signatures ? params.signatures : "0x",
             {
                 gasPrice: utils.parseUnits("100", "gwei"),
                 gasLimit: 6000000,

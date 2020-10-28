@@ -5,18 +5,18 @@ pragma experimental ABIEncoderV2;
     Releases spores at the given rate until exhausted
     is doubled or halved every 3,240 blocks (7 days at 20s a block) based on staked $ENOKI
 */
-import "@openzeppelin/contracts/math/Math.sol";
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts-ethereum-package/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts-ethereum-package/utils/Pausable.sol";
-import "@openzeppelin/contracts-ethereum-package/access/Ownable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/math/Math.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
 
 import "./Defensible.sol";
 import "./interfaces/IMushroomFactory.sol";
 import "./interfaces/IMission.sol";
-import "./SporeToken.sol";
+import "./interfaces/ISporeToken.sol";
 import "./BannedContractList.sol";
 
 contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUpgradeSafe, Defensible {
@@ -25,7 +25,7 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
 
     /* ========== STATE VARIABLES ========== */
 
-    SporeToken public sporeToken;
+    ISporeToken public sporeToken;
     IERC20 public stakingToken;
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
@@ -74,7 +74,7 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         __ReentrancyGuard_init_unchained();
         __Ownable_init_unchained();
 
-        sporeToken = SporeToken(_sporeToken);
+        sporeToken = ISporeToken(_sporeToken);
         stakingToken = IERC20(_stakingToken);
         mushroomFactory = IMushroomFactory(_mushroomFactory);
         mission = IMission(_mission);

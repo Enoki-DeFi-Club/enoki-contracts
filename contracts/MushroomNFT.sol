@@ -1,20 +1,33 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/access/AccessControl.sol";
+import "./ERC721.sol";
 import "./MushroomLib.sol";
 
 /*
     Minting and burning permissions are managed by the Owner
 */
-contract MushroomNFT is ERC721("Mushroom", "Mushroom"), Ownable {
+contract MushroomNFT is ERC721UpgradeSafe, OwnableUpgradeSafe, AccessControlUpgradeSafe {
     using MushroomLib for MushroomLib.MushroomData;
     using MushroomLib for MushroomLib.MushroomType;
 
     mapping (uint256 => MushroomLib.MushroomData) public mushroomData; // NFT Id -> Metadata
     mapping (uint256 => MushroomLib.MushroomType) public mushroomTypes; // Species Id -> Metadata
     mapping (uint256 => bool) public mushroomTypeExists; // Species Id -> Exists
+    mapping (uint256 => string) public mushroomMetadataUri; // Species Id -> URI
+
+    bytes32 public constant LIFESPAN_MODIFIER_ROLE = keccak256("LIFESPAN_MODIFIER_ROLE");
+        bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
+    function initialize() public initializer {
+        __Ownable_init_unchained();
+        __AccessControl_init_unchained();
+        __ERC721_init("Enoki Mushrooms", "Enoki Mushrooms");
+
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    }
 
     /* ========== VIEWS ========== */
 
@@ -32,21 +45,32 @@ contract MushroomNFT is ERC721("Mushroom", "Mushroom"), Ownable {
         MushroomLib.MushroomType storage species = mushroomTypes[speciesId];
         return species.cap.sub(species.minted);
     }
-    
-    // TODO: Allowed approved contracts to set lifespan
-    function setMushroomLifespan(uint256 index, uint256 lifespan) public onlyOwner {
-        MushroomLib.MushroomData storage data = mushroomData[index];
-        data.lifespan = lifespan;
+
+    /// @notice Return token URI for mushroom
+    /// @notice URI is determined by species and can be modifed by the owner
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        MushroomLib.MushroomData storage data = mushroomData[tokenId];
+        return mushroomMetadataUri[data.species];
+    }  
+
+    /* ========== ROLE MANAGEMENT ========== */
+
+    // TODO: Ensure we can transfer admin role privledges
+
+    modifier onlyLifespanModifier() {
+        require(hasRole(LIFESPAN_MODIFIER_ROLE, msg.sender), "MushroomNFT: Only approved lifespan modifier");
+        _;
+    }
+
+    modifier onlyMinter() {
+        require(hasRole(MINTER_ROLE, msg.sender), "MushroomNFT: Only approved mushroom minter");
+        _;
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     /**
-     * @dev Burns `tokenId`. See {ERC721-_burn}. Also clears mushroom data for this token.
-     *
-     * Requirements:
-     *
-     * - The caller must own `tokenId` or be an approved operator.
+     * @dev The burner must be the owner of the token, or approved. The EnokiGeyser owns tokens when it burns them.
      */
     function burn(uint256 tokenId) public {
         //solhint-disable-next-line max-line-length
@@ -56,10 +80,18 @@ contract MushroomNFT is ERC721("Mushroom", "Mushroom"), Ownable {
     }
 
     // TODO: Approved Minters only
-    function mint(address recipient, uint256 tokenId, uint256 speciesId, uint256 lifespan) public {
-        //solhint-disable-next-line max-line-length
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721Burnable: caller is not owner nor approved");
+    function mint(address recipient, uint256 tokenId, uint256 speciesId, uint256 lifespan) public onlyMinter {
         _mintWithMetadata(recipient, tokenId, speciesId, lifespan);
+    }
+
+    // TODO: Allowed approved contracts to set lifespan
+    function setMushroomLifespan(uint256 index, uint256 lifespan) public onlyLifespanModifier {
+        MushroomLib.MushroomData storage data = mushroomData[index];
+        data.lifespan = lifespan;
+    }
+
+    function setSpeciesUri(uint256 speciesId, string memory URI) public onlyOwner {
+        mushroomMetadataUri[speciesId] = URI;
     }
 
     function _mintWithMetadata(address recipient, uint256 tokenId, uint256 speciesId, uint256 lifespan) internal {

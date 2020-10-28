@@ -1,10 +1,9 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
 
 import "./MushroomNFT.sol";
@@ -21,7 +20,7 @@ contract MushroomFactory is Initializable, OwnableUpgradeSafe {
     using MushroomLib for MushroomLib.MushroomType;
     using SafeMath for uint256;
 
-    event MushroomGrown(address recipient, uint256 id, uin256 species, uin256 lifespan);
+    event MushroomGrown(address recipient, uint256 id, uint256 species, uint256 lifespan);
 
     IERC20 public sporeToken;
     MushroomNFT public mushroomNft;

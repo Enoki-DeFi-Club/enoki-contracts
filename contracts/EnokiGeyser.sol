@@ -7,16 +7,15 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+// import "@openzeppelin/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/utils/ReentrancyGuard.sol";
 
-import "./TokenPool.sol";
+import "./interfaces/ITokenPool.sol";
 import "./Defensible.sol";
 import "./MushroomNFT.sol";
 import "./MushroomLib.sol";
-
 import "./metadata/MushroomMetadata.sol";
 
 /**
@@ -37,7 +36,7 @@ import "./metadata/MushroomMetadata.sol";
  *      More background and motivation available at:
  *      https://github.com/ampleforth/RFCs/blob/master/RFCs/rfc-1.md
  */
-contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuard, Defensible {
+contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, Defensible {
     using SafeMath for uint256;
     using MushroomLib for MushroomLib.MushroomData;
     using MushroomLib for MushroomLib.MushroomType;
@@ -49,8 +48,8 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuard, Defe
     // amount: Unlocked tokens, total: Total locked tokens
     event TokensUnlocked(uint256 amount, uint256 total);
 
-    TokenPool private _unlockedPool;
-    TokenPool private _lockedPool;
+    ITokenPool private _unlockedPool;
+    ITokenPool private _lockedPool;
 
     MushroomMetadata public mushroomMetadata;
 
@@ -158,8 +157,8 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuard, Defe
 
         __Ownable_init();
 
-        _unlockedPool = new TokenPool(distributionToken);
-        _lockedPool = new TokenPool(distributionToken);
+        // _unlockedPool = new TokenPool(distributionToken);
+        // _lockedPool = new TokenPool(distributionToken);
         startBonus = startBonus_;
         bonusPeriodSec = bonusPeriodSec_;
         _maxUnlockSchedules = maxUnlockSchedules;

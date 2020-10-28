@@ -542,11 +542,6 @@ abstract contract AccessControlUpgradeSafe is Initializable, ContextUpgradeSafe 
         __AccessControl_init_unchained();
     }
 
-    function __AccessControl_init_unchained() internal initializer {
-
-
-    }
-
     using EnumerableSet for EnumerableSet.AddressSet;
     using Address for address;
 

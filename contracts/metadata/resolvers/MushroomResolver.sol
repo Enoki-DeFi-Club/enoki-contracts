@@ -1,13 +1,12 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
 
 import "../../MushroomNFT.sol";
 import "../../MushroomLib.sol";
 import "./MetadataResolver.sol";
-
 
 /*
     Reads mushroom NFT metadata directly from the Mushroom NFT contract

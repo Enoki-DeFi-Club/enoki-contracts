@@ -1,6 +1,6 @@
 import ethers, {BigNumber, constants, utils} from "ethers";
 import _ from "lodash";
-import { adr as addr, BN, ETH } from "../utils";
+import { addr, BN, ETH } from "../utils/shorthand";
 
 export const daysToSeconds = (days: number): BigNumber => {
     const bnDays = BigNumber.from(days);

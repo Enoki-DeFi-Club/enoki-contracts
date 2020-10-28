@@ -11,3 +11,17 @@ export function ETH(value: string): BigNumber {
 export function addr(value: string): string {
     return utils.getAddress(value);
 }
+
+/*
+    Logging shorthand
+*/
+export function logobj(value: any, message: string | undefined = undefined) {
+    if (message) {
+        console.log(message);
+    }
+    console.dir(value, {depth: null});
+}
+
+export function logbn(value: BigNumber, message: string | undefined = undefined) {
+    console.log(message ? message : "", value.toString());
+}

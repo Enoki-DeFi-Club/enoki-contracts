@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import { providers, Signer } from "ethers";
 import { confirmCore } from "../confirmCore";
 import { deployed } from "./deployed";
+import { confirmNewGeyser } from "../confirmNewGeyser";
+import { confirmPools } from "../confirmPools";
 export const colors = require("colors/safe");
 
 colors.setTheme({
@@ -27,17 +29,50 @@ export interface LaunchFlags {
   testmode: boolean;
 }
 
+/* Steps  
+  - Deploy BannedContracts
+  - Upgrade Missions0 to new contract
+    (make sure to change approvedContractsList -> BannedContractsList)
+  - Upgrade EnokiGeyser to new contract
+    (approvedContractsList -> BannedContractsList)
+  - Deploy Pools
+
+  Does anything else require the ContractList update?
+
+*/
+
 export async function deployPools(
   enoki: EnokiSystem,
 ): Promise<{
   enoki: EnokiSystem;
 }> {
 
-  console.log(colors.title("---Deploy Initial Mission Pool---"));
+  console.log(colors.title("---Deploy Banned Contract List---"));
+  await enoki.deployBannedContractList();
+
+  console.log(colors.title("---Upgrade Enoki Geyser---"));
+  await enoki.upgradeEnokiGeyser();
+
+  console.log(colors.title("---Confirm all variables of upgraded Geyser---"));
+  await confirmNewGeyser(enoki, enoki.config);
+
+  console.log(colors.title("---Deploy Mushroom NFT---"));
+  await enoki.deployMushroomNft();
+
+  console.log(colors.title("---Deploy Mushroom Metadata Infra---"));
+  await enoki.deployMushroomMetadataInfra();
+
+  console.log(colors.title("---Set MetadataResolver on EnokiGeyser---"));
+
+  console.log(colors.title("---Deploy Initial Mission Pools & Mushroom Factories---"));
   await enoki.deployMission0Pools();
+
+  console.log(colors.title("---Set Muchroom NFT minting & lifespan modification permissions---"));
+  await enoki.deployMushroomNft();
+
   console.log("");
 
-//   await confirmPools(enoki, Configs.MAINNET);
+  await confirmPools(enoki, enoki.config);
 
   return { enoki };
 }

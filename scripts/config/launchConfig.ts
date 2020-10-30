@@ -147,66 +147,66 @@ const MAINNET = {
         {
             assetName: "ETH",
             assetAddress: constants.AddressZero,
-            initialSporesPerWeek: ETH("260"),
-            mushroomSpecies: BN(0)
+            initialSporesPerWeek: ETH("560"),
+            mushroomSpecies: BN(0) // Scheming Amanita
         },
         {
             assetName: "UNI",
             assetAddress: addr("0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"),
-            initialSporesPerWeek: ETH("260"),
-            mushroomSpecies: BN(1)
+            initialSporesPerWeek: ETH("860"),
+            mushroomSpecies: BN(1) // Madam Morel
         },
         {
-            assetName: "REDACTED",
+            assetName: "DAI<>SPORE Value LP",
             assetAddress: addr("0x89a20e860359382007cff3efaa22f697941293ca"),
-            initialSporesPerWeek: ETH("260"),
-            mushroomSpecies: BN(2)
-        },
-        {
-            assetName: "SPORE<>ETH Uni LP",
-            assetAddress: addr("0x3eb9833bbea994287a2227e3feba0d3dc5d99f05"),
-            initialSporesPerWeek: ETH("1260"),
-            mushroomSpecies: BN(3)
+            initialSporesPerWeek: ETH("180"),
+            mushroomSpecies: BN(2) // Boisterous Bolete
         },
         {
             assetName: "ENOKI<>ETH Uni LP",
             assetAddress: addr("0x284fa4627af7ad1580e68481d0f9fc7e5cf5cf77"),
-            initialSporesPerWeek: ETH("3260"),
-            mushroomSpecies: BN(4)
+            initialSporesPerWeek: ETH("1660"),
+            mushroomSpecies: BN(3) // Enoki
+        },
+        {
+            assetName: "SPORE<>ETH Uni LP",
+            assetAddress: addr("0x3eb9833bbea994287a2227e3feba0d3dc5d99f05"),
+            initialSporesPerWeek: ETH("2160"),
+            mushroomSpecies: BN(4) // Awkward Ironwood
         },
     ],
 } as LaunchConfig;
 
 const mushroomConfig: MushroomConfig = [
     {
-        speciesName: "Amanita",
+        speciesName: "Scheming Amanita",
         speciesId: BN(0),
-        strength: ETH("0.5"),
-        costPerMushroom: ETH("6"),
-        minLifespan: daysToSeconds(1),
-        maxLifespan: daysToSeconds(7),
+        strength: ETH("2"), // Strength = Enoki yield per week
+        costPerMushroom: ETH("5"),
+        minLifespan: daysToSeconds(2),
+        maxLifespan: daysToSeconds(6),
         cap: BN(1800),
     },
     {
-        speciesName: "Boleta",
+        speciesName: "Madam Morel",
         speciesId: BN(1),
         strength: ETH("3"),
         costPerMushroom: ETH("4"),
-        minLifespan: daysToSeconds(7),
-        maxLifespan: daysToSeconds(21),
+        minLifespan: daysToSeconds(8),
+        maxLifespan: daysToSeconds(10),
         cap: BN(860),
     },
     {
-        speciesName: "Green Ironwood",
+        speciesName: "Boisterous Bolete",
         speciesId: BN(2),
-        strength: ETH("4.5"),
+        strength: ETH("3.5"),
         costPerMushroom: ETH("12"),
         minLifespan: daysToSeconds(14),
         maxLifespan: daysToSeconds(28),
-        cap: BN(600),
+        cap: BN(660),
     },
     {
-        speciesName: "Shiitake",
+        speciesName: "Enoki",
         speciesId: BN(3),
         strength: ETH("8"),
         costPerMushroom: ETH("16"),
@@ -215,7 +215,7 @@ const mushroomConfig: MushroomConfig = [
         cap: BN(260),
     },
     {
-        speciesName: "Shiitake",
+        speciesName: "Awkward Ironwood",
         speciesId: BN(4),
         strength: ETH("12"),
         costPerMushroom: ETH("20"),

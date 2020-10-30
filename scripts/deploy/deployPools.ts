@@ -49,30 +49,34 @@ export async function deployPools(
 
   console.log(colors.title("---Deploy Banned Contract List---"));
   await enoki.deployBannedContractList();
+  console.log("");
 
   console.log(colors.title("---Upgrade Enoki Geyser---"));
   await enoki.upgradeEnokiGeyser();
+  console.log("");
 
   console.log(colors.title("---Confirm all variables of upgraded Geyser---"));
   await confirmNewGeyser(enoki, enoki.config);
+  console.log("");
 
   console.log(colors.title("---Deploy Mushroom NFT---"));
   await enoki.deployMushroomNft();
+  console.log("");
 
   console.log(colors.title("---Deploy Mushroom Metadata Infra---"));
   await enoki.deployMushroomMetadataInfra();
-
-  console.log(colors.title("---Set MetadataResolver on EnokiGeyser---"));
+  console.log("");
 
   console.log(colors.title("---Deploy Initial Mission Pools & Mushroom Factories---"));
   await enoki.deployMission0Pools();
-
-  console.log(colors.title("---Set Muchroom NFT minting & lifespan modification permissions---"));
-  await enoki.deployMushroomNft();
-
   console.log("");
 
-  await confirmPools(enoki, enoki.config);
+  console.log(colors.title("---Set MetadataResolver on EnokiGeyser---"));
+  console.log(colors.title("---Set Muchroom NFT minting & lifespan modification permissions---"));
+  await enoki.setupMushroomInfra();
+  console.log("");
+
+  // await confirmPools(enoki, enoki.config);
 
   return { enoki };
 }

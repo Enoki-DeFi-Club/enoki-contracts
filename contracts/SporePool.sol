@@ -27,9 +27,7 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
 
     ISporeToken public sporeToken;
     IERC20 public stakingToken;
-    uint256 public periodFinish = 0;
-    uint256 public rewardRate = 0;
-    uint256 public rewardsDuration = 7 days;
+    uint256 public sporesPerSecond = 0;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
 
@@ -56,15 +54,18 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
 
     address public enokiDaoAgent;
 
+    // In percentage: mul(X).div(100)
+    uint256 public decreaseRateMultiplier = 50;
+    uint256 public increaseRateMultiplier = 150;
+
     /* ========== CONSTRUCTOR ========== */
 
     function initialize(
-        address _owner,
         address _sporeToken,
         address _stakingToken,
         address _mushroomFactory,
         address _mission,
-        address _approvedContractList,
+        address _bannedContractList,
         address _devRewardAddress,
         address daoAgent_,
         uint256[5] memory uintParams
@@ -78,17 +79,17 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         stakingToken = IERC20(_stakingToken);
         mushroomFactory = IMushroomFactory(_mushroomFactory);
         mission = IMission(_mission);
-        bannedContractList = BannedContractList(_approvedContractList);
+        bannedContractList = BannedContractList(_bannedContractList);
 
         /*
-        [0] uint256 _devRewardPercentage,
-        [1] uint256 stakingEnabledTime_,
-        [2] uint256 votingEnabledTime_,
-        [3] uint256 voteDuration_,
-        [4] uint256 initialRewardRate_,
+            [0] uint256 _devRewardPercentage,
+            [1] uint256 stakingEnabledTime_,
+            [2] uint256 votingEnabledTime_,
+            [3] uint256 voteDuration_,
+            [4] uint256 initialRewardRate_,
         */
 
-        rewardRate = uintParams[4];
+        sporesPerSecond = uintParams[4];
 
         devRewardPercentage = uintParams[0];
         devRewardAddress = _devRewardAddress;
@@ -112,23 +113,22 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         return _balances[account];
     }
 
+    // Rewards are turned off at the mission level
     function lastTimeRewardApplicable() public view returns (uint256) {
-        return Math.min(block.timestamp, periodFinish);
+        return block.timestamp;
     }
 
     function rewardPerToken() public view returns (uint256) {
         if (_totalSupply == 0) {
             return rewardPerTokenStored;
         }
-        return rewardPerTokenStored.add(lastTimeRewardApplicable().sub(lastUpdateTime).mul(rewardRate).mul(1e18).div(_totalSupply));
+
+        // Time difference * sporesPerSecond
+        return rewardPerTokenStored.add(lastTimeRewardApplicable().sub(lastUpdateTime).mul(sporesPerSecond).mul(1e18).div(_totalSupply));
     }
 
     function earned(address account) public view returns (uint256) {
         return _balances[account].mul(rewardPerToken().sub(userRewardPerTokenPaid[account])).div(1e18).add(rewards[account]);
-    }
-
-    function getRewardForDuration() external view returns (uint256) {
-        return rewardRate.mul(rewardsDuration);
     }
 
     /* ========== MUTATIVE FUNCTIONS ========== */
@@ -159,6 +159,11 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
             // Burn some rewards for mushrooms if desired
             if (mushroomsToGrow > 0) {
                 uint256 totalCost = mushroomFactory.costPerMushroom().mul(mushroomsToGrow);
+
+                require(
+                    mushroomsToGrow <= mushroomFactory.getRemainingMintableForMySpecies(mushroomsToGrow),
+                    "Number of mushrooms specified exceeds cap"
+                );
                 require(reward >= totalCost, "Not enough rewards to grow the number of mushrooms specified");
 
                 uint256 toDev = totalCost.mul(devRewardPercentage).div(MAX_PERCENTAGE);
@@ -167,6 +172,8 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
                 if (toDev > 0) {
                     mission.sendSpores(devRewardAddress, toDev);
                 }
+
+                mission.sendSpores(enokiDaoAgent, totalCost.sub(toDev));
 
                 remainingReward = reward.sub(totalCost);
                 mushroomFactory.growMushrooms(msg.sender, mushroomsToGrow);
@@ -192,23 +199,24 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         This ensures only one rate vote can pass for a given time period
     */
 
-    function halveRate(uint256 voteNonce) public onlyDAO {
+    function reduceRate(uint256 voteNonce) public onlyDAO {
         require(now >= votingEnabledTime, "SporePool: Voting not enabled yet");
         require(now >= nextVoteAllowedAt, "SporePool: Previous rate change vote too soon");
         require(voteNonce == lastVoteNonce.add(1), "SporePool: Incorrect vote nonce");
 
-        rewardRate = rewardRate.div(2);
+        sporesPerSecond = sporesPerSecond.mul(decreaseRateMultiplier).div(MAX_PERCENTAGE);
 
         nextVoteAllowedAt = now.add(voteDuration);
         lastVoteNonce = voteNonce.add(1);
     }
 
-    function doubleRate(uint256 voteNonce) public onlyDAO {
+    function increaseRate(uint256 voteNonce) public onlyDAO {
         require(now >= votingEnabledTime, "SporePool: Voting not enabled yet");
         require(now >= nextVoteAllowedAt, "SporePool: Previous rate change vote too soon");
         require(voteNonce == lastVoteNonce.add(1), "SporePool: Incorrect vote nonce");
 
-        rewardRate = rewardRate.mul(2);
+        // Multiple by 1.5x
+        sporesPerSecond = sporesPerSecond.mul(increaseRateMultiplier).div(MAX_PERCENTAGE);
 
         nextVoteAllowedAt = now.add(voteDuration);
         lastVoteNonce = voteNonce.add(1);
@@ -224,12 +232,6 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         //TODO: Add safeTransfer
         IERC20(tokenAddress).transfer(owner(), tokenAmount);
         emit Recovered(tokenAddress, tokenAmount);
-    }
-
-    function setRewardsDuration(uint256 _rewardsDuration) external onlyOwner {
-        require(block.timestamp > periodFinish, "Previous rewards period must be complete before changing the duration for the new period");
-        rewardsDuration = _rewardsDuration;
-        emit RewardsDurationUpdated(rewardsDuration);
     }
 
     /* ========== MODIFIERS ========== */
@@ -255,6 +257,5 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
     event Staked(address indexed user, uint256 amount);
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
-    event RewardsDurationUpdated(uint256 newDuration);
     event Recovered(address token, uint256 amount);
 }

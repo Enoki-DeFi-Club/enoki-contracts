@@ -55,9 +55,15 @@ contract MushroomFactory is Initializable, OwnableUpgradeSafe {
         return minLifespan.add(fromMin);
     }
 
+    function getRemainingMintableForMySpecies() public view returns (uint256) {
+        return mushroomNft.getRemainingMintableForSpecies(mySpecies);
+    }
+
     // Each mushroom costs 1/10th of the spore rate in spores.
     function growMushrooms(address recipient, uint256 numMushrooms) public onlyOwner {
         MushroomLib.MushroomType memory species = mushroomNft.getSpecies(mySpecies);
+
+        require(getRemainingMintableForMySpecies() >= numMushrooms, "MushroomFactory: Mushrooms to grow exceeds species cap");
         for (uint256 i = 0; i < numMushrooms; i++) {
             uint256 nextId = mushroomNft.totalSupply().add(1);
 

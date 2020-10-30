@@ -48,6 +48,10 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
     // amount: Unlocked tokens, total: Total locked tokens
     event TokensUnlocked(uint256 amount, uint256 total);
 
+    event MaxStakesPerAddressSet(uint256 maxStakesPerAddress);
+    event MushroomMetadataSet(address mushroomMetadata);
+    event AdminTransferred(address newAdmin);
+
     ITokenPool private _unlockedPool;
     ITokenPool private _lockedPool;
 
@@ -169,11 +173,12 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
         devRewardAddress = devRewardAddress_;
 
         admin = admin_;
+        emit AdminTransferred(admin_);
 
         bannedContractList = BannedContractList(approvedContractList_);
     }
 
-    // TODO: Add a method for per-index staking access
+    // TODO: Add a method for per-index staking access when we add new staking pools
     function isNftStakeable(address nftContract) public view returns (bool) {
         return mushroomMetadata.hasMetadataResolver(nftContract);
     }
@@ -183,13 +188,22 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
         _;
     }
 
+    /* ========== ADMIN FUNCTIONALITY ========== */
+
     // Only effects future stakes
     function setMaxStakesPerAddress(uint256 maxStakes) public onlyAdmin {
         maxStakesPerAddress = maxStakes;
+        emit MaxStakesPerAddressSet(maxStakesPerAddress);
     }
 
     function setMushroomMetadata(address mushroomMetadata_) public onlyAdmin {
         mushroomMetadata = MushroomMetadata(mushroomMetadata_);
+        emit MushroomMetadataSet(address(mushroomMetadata));
+    }
+
+    function transferAdmin(address newAdmin_) public onlyAdmin {
+        admin = newAdmin_;
+        emit AdminTransferred(newAdmin_);
     }
 
     /**

@@ -1,10 +1,6 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-/* 
-    Releases spores at the given rate until exhausted
-    is doubled or halved every 3,240 blocks (7 days at 20s a block) based on staked $ENOKI
-*/
 import "@openzeppelin/contracts-ethereum-package/contracts/math/Math.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
@@ -38,8 +34,8 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
 
-    uint256 private _totalSupply;
-    mapping(address => uint256) private _balances;
+    uint256 internal _totalSupply;
+    mapping(address => uint256) internal _balances;
 
     IMushroomFactory public mushroomFactory;
     IMission public mission;
@@ -69,7 +65,7 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         address _devRewardAddress,
         address daoAgent_,
         uint256[5] memory uintParams
-    ) public initializer {
+    ) virtual public initializer {
         __Context_init_unchained();
         __Pausable_init_unchained();
         __ReentrancyGuard_init_unchained();
@@ -136,7 +132,7 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
-    function stake(uint256 amount) external nonReentrant defend(bannedContractList) whenNotPaused updateReward(msg.sender) {
+    function stake(uint256 amount) external virtual nonReentrant defend(bannedContractList) whenNotPaused updateReward(msg.sender) {
         require(amount > 0, "Cannot stake 0");
         _totalSupply = _totalSupply.add(amount);
         _balances[msg.sender] = _balances[msg.sender].add(amount);
@@ -144,7 +140,7 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         emit Staked(msg.sender, amount);
     }
 
-    function withdraw(uint256 amount) public nonReentrant updateReward(msg.sender) {
+    function withdraw(uint256 amount) public virtual nonReentrant updateReward(msg.sender) {
         require(amount > 0, "Cannot withdraw 0");
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);

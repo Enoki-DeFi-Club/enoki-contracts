@@ -10,7 +10,6 @@ import EthVesting from "../../artifacts/EthVesting.json";
 import BannedContractList from "../../artifacts/BannedContractList.json";
 
 import TokenVesting from "../../artifacts/TokenVesting.json";
-import SporeVesting from "../../artifacts/SporeVesting.json";
 import PaymentSplitter from "../../artifacts/PaymentSplitter.json";
 import SporePool from "../../artifacts/SporePool.json";
 import MushroomFactory from "../../artifacts/MushroomFactory.json";

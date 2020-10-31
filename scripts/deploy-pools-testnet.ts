@@ -9,6 +9,8 @@ async function main() {
     const jsonRpcProvider = ethers.provider;
 
     const [first, deployer] = await ethers.getSigners();
+    
+    console.log('Deployer: ', await deployer.getAddress());
 
     let enoki = EnokiSystem.fromDeployed(
         Configs.MAINNET,

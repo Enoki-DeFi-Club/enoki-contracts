@@ -1,0 +1,59 @@
+{
+    "sporeToken": "0xa4Bad5d040d4464EC5CE130987731F2f428c9307",
+    "presale": "0xAa402E8a2E9A5825578850008896C492483F1607",
+    "missionsProxy": "0x1c586b2Ff4e13211aAe187244aef8D4312515151",
+    "missionsLogic": "0x86Cf5Ff6186f42C208f5005151391C5b7344864B",
+    "lpTokenVesting": "0x27B85fD1E4D89f729DB3dBAeE8A7245CE349e28A",
+    "sporePoolLogic": "0xE88bbcF1105CCE9aF20971F004C7E2768BB78b14",
+    "mushroomFactoryLogic": "0xeDc761499178803a3F7C8f56a87e70c4D7930417",
+    "mushroomNftLogic": "0x94586f68d6a331c6758701C0267A35b722E21958",
+    "mushroomNftProxy": "0xa6e8E562a7253DF0f93567E9430Ee880535225BC",
+    "mushroomMetadataLogic": "0xC2437749Eb51480F2A01a7bC5702843fc1E3B7c2",
+    "mushroomMetadataProxy": "0xb3c8Bc203407BAc5bAFF494E87EF25f5d2EA1F12",
+    "mushroomResolverLogic": "0xccB0deE0cDCfbc0505Ec6f3fe4cE64E4bb1322f1",
+    "mushroomResolverProxy": "0x4ab744Dc25D7efBcFD7E0EC6Dcc0FE1b32f7391c",
+    "bannedContractLogic": "0x03784D3464c44a7421e8edAeEAF52F03B9752E4C",
+    "bannedContractProxy": "0xe15b59c65e58416E37E83D5d2C095b4817e75766",
+    "enokiGeyserEscrow": "0xb0aeCC06f79d3a480E9bE21da8908E8087c49669",
+    "enokiGeyserProxy": "0xf616AA8c22F100fc8D479dCfc1BD905b4D6Fa591",
+    "enokiGeyserLogic": "0x7682B0f36d47443467f1Da713AeecF3b2C5d01e9",
+    "enokiToken": "0x886058DeDEd1325A27697122512F618db590eA32",
+    "enokiDaoAgent": "0x37e52356b6602028c7E6Cb2803ea0e024a621Fd4",
+    "devFundPaymentSplitter": "0xa2bA49EAE61F38Fa07E716D3210E0ca7868c744D",
+    "devFundEthVesting": "0xdb6D78F9C091c5B78319B921Cdde107d1Abf347F",
+    "devMultisig": "0x4f8fDC5D03B21aE85c5E451efE454D6e550fF761",
+    "proxyAdmin": "0x8a51e4C8EAaF044Ec82A11Ac3a991B1B2c247325",
+    "deployerAddress": "0xe9673e2806305557Daa67E3207c123Af9F95F9d2",
+    "missionPools": [
+        {
+            "assetName": "ETH",
+            "assetAddress": "0x0000000000000000000000000000000000000000",
+            "sporePool": "0x478EfCfC641784A8bFfE4c191d1078cb4eced228",
+            "mushroomFactory": "0xC8E7Cba7343e4e100586f5d244bBA0363D2C17A1"
+        },
+        {
+            "assetName": "UNI",
+            "assetAddress": "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
+            "sporePool": "0x0DEeB19BFDe602f6c0d91AfAa168D3b071feb636",
+            "mushroomFactory": "0x641ad546748Fc7Ac3362632DEfB6A4115e7DA032"
+        },
+        {
+            "assetName": "DAI<>SPORE_Value_LP",
+            "assetAddress": "0x89A20E860359382007cfF3EfaA22F697941293CA",
+            "sporePool": "0xc028A8222F90C05945D37aEe9C222E0d9aab6252",
+            "mushroomFactory": "0x9d0a84D8d85b7305c3F8595AFB65E0A0DB8BB101"
+        },
+        {
+            "assetName": "ENOKI<>ETH_Uni_LP",
+            "assetAddress": "0x284fa4627AF7Ad1580e68481D0f9Fc7e5Cf5Cf77",
+            "sporePool": "0x7435842CF19f64F1F8C9fCc37c1E30AceBD8aFd6",
+            "mushroomFactory": "0xd3D103B537C472B53e9AC9B6cE919b589110e70D"
+        },
+        {
+            "assetName": "SPORE<>ETH_Uni_LP",
+            "assetAddress": "0x3eb9833BBEA994287A2227E3fEBa0D3Dc5D99F05",
+            "sporePool": "0x81DD3253FF50E2F120f8818f421c978eb7aDa428",
+            "mushroomFactory": "0xFbBd14F8b6E14fad05C7b70031c51C6f0a32aac7"
+        }
+    ]
+}

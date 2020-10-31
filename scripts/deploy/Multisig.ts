@@ -140,13 +140,18 @@ export class Multisig {
         Can only be executed with the contract address unlocked using ganache --unlock option
     */
     async execDirectly(params: ExecTransactionParams, signer: Signer) {
-        // Change threshold to one: We only need the private key of one owner to execute operation
+         // Change threshold to one: We only need the private key of one owner to execute operation
+
+         console.log(1)
         await this.contract.methods
             .changeThreshold(1)
             .send({from: this.ethersContract.address});
 
+            console.log(2)
         const signature = await this.signTransaction(signer, params);
         params.signatures = signature;
+
+        console.log(3)
 
         return await this.execTransaction(params);
     }
@@ -177,6 +182,8 @@ export class Multisig {
                 gasLimit: 6000000,
             }
         );
+        console.log(4)
+
 
         const result = await tx.wait();
         return result;

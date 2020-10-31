@@ -198,9 +198,10 @@ const MAINNET = {
         ],
     },
     poolGlobals: {
+        // TODO: Reset to real values
         // stakingStartTime: BN(1604167200), // 10/31/2020 @ 6:00pm (UTC)
-        // votingStartTime: BN(1604167200), // 10/31/2020 @ 6:00pm (UTC)
-        stakingStartTime: BN(1604104277), // 10/31/2020 @ 6:00pm (UTC)
+        // votingStartTime: BN(1604167200).add(daysToSeconds(7)), // 10/31/2020 @ 6:00pm (UTC)
+        stakingStartTime: BN(1604104277),
         votingStartTime: BN(1604104277).add(daysToSeconds(7)),
         voteDuration: daysToSeconds(7),
     },

@@ -7,6 +7,7 @@ import { confirmCore } from "../confirmCore";
 import { deployed } from "./deployed";
 import { confirmNewGeyser } from "../confirmNewGeyser";
 import { confirmPools } from "../confirmPools";
+import { exportEnokiSystem } from "../utils/writeFile";
 export const colors = require("colors/safe");
 
 colors.setTheme({
@@ -46,7 +47,6 @@ export async function deployPools(
 ): Promise<{
   enoki: EnokiSystem;
 }> {
-
   console.log(colors.title("---Deploy Banned Contract List---"));
   await enoki.deployBannedContractList();
   console.log("");
@@ -82,6 +82,8 @@ export async function deployPools(
 
   console.log(colors.title("---Confirming Deploy Parameters---"));
   await confirmPools(enoki, enoki.config);
+
+  exportEnokiSystem(enoki);
 
   return { enoki };
 }

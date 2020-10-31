@@ -97,7 +97,7 @@ contract Ownable is Context {
 }
 
 
-// Dependency file: contracts/ApprovedContractList.sol
+// Dependency file: contracts/BannedContractList.sol
 
 // pragma solidity ^0.6.0;
 
@@ -107,7 +107,7 @@ contract Ownable is Context {
     Approve Contracts to interact with pools.
     (All contracts are barred from interacting with pools by default.)
 */
-contract ApprovedContractList is Ownable {
+contract BannedContractList is Ownable {
     mapping (address => bool) approved;
     function isApproved(address toCheck) external returns (bool) {
         return approved[toCheck];
@@ -125,16 +125,16 @@ contract ApprovedContractList is Ownable {
 
 pragma solidity ^0.6.0;
 
-// import "contracts/ApprovedContractList.sol";
+// import "contracts/BannedContractList.sol";
 
 /*
     Prevent smart contracts from calling functions unless approved by the specified whitelist.
 */
 contract Defensible {
  // Only smart contracts will be affected by this modifier
-  modifier defend(ApprovedContractList approvedContractList) {
+  modifier defend(BannedContractList bannedContractList) {
     require(
-      (msg.sender == tx.origin) || approvedContractList.isApproved(msg.sender),
+      (msg.sender == tx.origin) || bannedContractList.isApproved(msg.sender),
       "This smart contract has not been approved"
     );
     _;

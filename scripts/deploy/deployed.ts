@@ -6,7 +6,7 @@ export interface EnokiAddresses {
     missionsProxy: string;
     missionsLogic: string;
     lpTokenVesting: string;
-    approvedContractList: string;
+    bannedContractList: string;
     enokiGeyserEscrow: string;
     enokiGeyserProxy: string;
     enokiGeyserLogic: string;
@@ -23,8 +23,8 @@ export const deployed: EnokiAddresses = {
     presale: utils.getAddress("0xAa402E8a2E9A5825578850008896C492483F1607"),
     missionsProxy: utils.getAddress("0x1c586b2Ff4e13211aAe187244aef8D4312515151"),
     missionsLogic: utils.getAddress("0x86Cf5Ff6186f42C208f5005151391C5b7344864B"),
-    lpTokenVesting: utils.getAddress("0xDeC2D420C217971bdf8a94aB1DFe18f275ceFF3F"),
-    approvedContractList: utils.getAddress("0xd0089684A552B36f2f82F1c7Fe94905C8ca1c292"),
+    lpTokenVesting: utils.getAddress("0x27b85fd1e4d89f729db3dbaee8a7245ce349e28a"),
+    bannedContractList: utils.getAddress("0xd0089684A552B36f2f82F1c7Fe94905C8ca1c292"),
     enokiGeyserEscrow: utils.getAddress("0xb0aeCC06f79d3a480E9bE21da8908E8087c49669"),
     enokiGeyserProxy: utils.getAddress("0xf616AA8c22F100fc8D479dCfc1BD905b4D6Fa591"),
     enokiGeyserLogic: utils.getAddress("0x25868456df5d0Eb687E8e2578884bF9171B8bdBa"),

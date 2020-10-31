@@ -1,12 +1,13 @@
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
+
 import "./resolvers/MetadataResolver.sol";
 import "../MushroomLib.sol";
 
-contract MushroomMetadata is Ownable {
+contract MushroomMetadata is OwnableUpgradeSafe {
     using MushroomLib for MushroomLib.MushroomData;
     using MushroomLib for MushroomLib.MushroomType;
 
@@ -23,6 +24,14 @@ contract MushroomMetadata is Ownable {
         return metadataResolvers[nftContract] != address(0);
     }
 
+    function getMetadataResolver(address nftContract) external view returns (address) {
+        return metadataResolvers[nftContract];
+    }
+
+    function initialize() public initializer {
+        __Ownable_init();
+    }
+
     function getMushroomData(
         address nftContract,
         uint256 nftIndex,
@@ -31,6 +40,14 @@ contract MushroomMetadata is Ownable {
         MetadataResolver resolver = MetadataResolver(metadataResolvers[nftContract]);
         MushroomLib.MushroomData memory mushroomData = resolver.getMushroomData(nftIndex, data);
         return mushroomData;
+    }
+
+    function isBurnable(
+        address nftContract,
+        uint256 nftIndex
+    ) external view onlyWithMetadataResolver(nftContract) returns (bool) {
+        MetadataResolver resolver = MetadataResolver(metadataResolvers[nftContract]);
+        return resolver.isBurnable(nftIndex);
     }
 
     function setMushroomLifespan(

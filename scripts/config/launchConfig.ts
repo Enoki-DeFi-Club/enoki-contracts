@@ -1,5 +1,6 @@
-import ethers, {BigNumber, utils} from "ethers";
+import ethers, {BigNumber, constants, utils} from "ethers";
 import _ from "lodash";
+import {addr, BN, ETH} from "../utils/shorthand";
 
 export const daysToSeconds = (days: number): BigNumber => {
     const bnDays = BigNumber.from(days);
@@ -16,9 +17,30 @@ export interface GeyserParams {
     devRewardPercentage: BigNumber;
 }
 
+export interface PoolConfig {
+    assetName: string;
+    assetAddress: string;
+    initialSporesPerWeek: BigNumber;
+    mushroomSpecies: BigNumber;
+}
+
+export interface MushroomType {
+    speciesName: string;
+    speciesId: BigNumber;
+    strength: BigNumber;
+    costPerMushroom: BigNumber;
+    minLifespan: BigNumber;
+    maxLifespan: BigNumber;
+    cap: BigNumber;
+}
+
+export interface PoolsConfig {
+    pools: PoolConfig[];
+}
+
 export interface LockSchedule {
     amount: BigNumber;
-    durationSec: number;
+    durationSec: BigNumber;
 }
 
 export interface LockScheduleMap {
@@ -55,7 +77,64 @@ export interface LaunchConfig {
         address: string;
         owners: string[];
     };
+    poolGlobals: {
+        stakingStartTime: BigNumber;
+        votingStartTime: BigNumber;
+        voteDuration: BigNumber;
+    };
+    pools: PoolConfig[];
+    species: MushroomConfig;
 }
+
+export type MushroomConfig = MushroomType[];
+
+const mushroomConfig: MushroomConfig = [
+    {
+        speciesName: "Scheming Amanita",
+        speciesId: BN(0),
+        strength: ETH("2"), // Strength = Enoki yield per week
+        costPerMushroom: ETH("5"),
+        minLifespan: daysToSeconds(2),
+        maxLifespan: daysToSeconds(6),
+        cap: BN(1800),
+    },
+    {
+        speciesName: "Madam Morel",
+        speciesId: BN(1),
+        strength: ETH("3"),
+        costPerMushroom: ETH("4"),
+        minLifespan: daysToSeconds(8),
+        maxLifespan: daysToSeconds(10),
+        cap: BN(860),
+    },
+    {
+        speciesName: "Boisterous Bolete",
+        speciesId: BN(2),
+        strength: ETH("3.5"),
+        costPerMushroom: ETH("12"),
+        minLifespan: daysToSeconds(14),
+        maxLifespan: daysToSeconds(28),
+        cap: BN(660),
+    },
+    {
+        speciesName: "Enoki",
+        speciesId: BN(3),
+        strength: ETH("8"),
+        costPerMushroom: ETH("16"),
+        minLifespan: daysToSeconds(28),
+        maxLifespan: daysToSeconds(56),
+        cap: BN(260),
+    },
+    {
+        speciesName: "Awkward Ironwood",
+        speciesId: BN(4),
+        strength: ETH("12"),
+        costPerMushroom: ETH("20"),
+        minLifespan: daysToSeconds(28),
+        maxLifespan: daysToSeconds(42),
+        cap: BN(130),
+    },
+];
 
 // Take mainnet assets from whales on local forked mainnet
 export const WHALES = {};
@@ -67,6 +146,9 @@ const MAINNET = {
         uniswapV2Factory: utils.getAddress(
             "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"
         ),
+        uniswapPairs: {
+            sporeEth: "0x3eb9833bbea994287a2227e3feba0d3dc5d99f05",
+        },
         enokiDaoAgent: utils.getAddress("0x37e52356b6602028c7e6cb2803ea0e024a621fd4"),
         enokiToken: utils.getAddress("0x886058deded1325a27697122512f618db590ea32"),
         gnosisProxyFactory: utils.getAddress(
@@ -115,6 +197,46 @@ const MAINNET = {
             utils.getAddress("0x9005cA508d14b4173f7063884A8fF6DB7AF5eeCD"),
         ],
     },
+    poolGlobals: {
+        // stakingStartTime: BN(1604167200), // 10/31/2020 @ 6:00pm (UTC)
+        // votingStartTime: BN(1604167200), // 10/31/2020 @ 6:00pm (UTC)
+        stakingStartTime: BN(1604104277), // 10/31/2020 @ 6:00pm (UTC)
+        votingStartTime: BN(1604104277).add(daysToSeconds(7)),
+        voteDuration: daysToSeconds(7),
+    },
+    pools: [
+        {
+            assetName: "ETH",
+            assetAddress: constants.AddressZero,
+            initialSporesPerWeek: ETH("560"),
+            mushroomSpecies: BN(0), // Scheming Amanita
+        },
+        {
+            assetName: "UNI",
+            assetAddress: addr("0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"),
+            initialSporesPerWeek: ETH("860"),
+            mushroomSpecies: BN(1), // Madam Morel
+        },
+        {
+            assetName: "DAI<>SPORE_Value_LP",
+            assetAddress: addr("0x89a20e860359382007cff3efaa22f697941293ca"),
+            initialSporesPerWeek: ETH("180"),
+            mushroomSpecies: BN(2), // Boisterous Bolete
+        },
+        {
+            assetName: "ENOKI<>ETH_Uni_LP",
+            assetAddress: addr("0x284fa4627af7ad1580e68481d0f9fc7e5cf5cf77"),
+            initialSporesPerWeek: ETH("1660"),
+            mushroomSpecies: BN(3), // Enoki
+        },
+        {
+            assetName: "SPORE<>ETH_Uni_LP",
+            assetAddress: addr("0x3eb9833bbea994287a2227e3feba0d3dc5d99f05"),
+            initialSporesPerWeek: ETH("2160"),
+            mushroomSpecies: BN(4), // Awkward Ironwood
+        },
+    ],
+    species: mushroomConfig,
 } as LaunchConfig;
 
 export const Configs = {

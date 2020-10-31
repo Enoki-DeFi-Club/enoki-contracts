@@ -5,7 +5,8 @@
     "missionsLogic": "0x86Cf5Ff6186f42C208f5005151391C5b7344864B",
     "lpTokenVesting": "0x27B85fD1E4D89f729DB3dBAeE8A7245CE349e28A",
     "sporePoolLogic": "0xE88bbcF1105CCE9aF20971F004C7E2768BB78b14",
-    "mushroomFactoryLogic": "0xeDc761499178803a3F7C8f56a87e70c4D7930417",
+    "sporePoolEthLogic": "0xeDc761499178803a3F7C8f56a87e70c4D7930417",
+    "mushroomFactoryLogic": "0xC8E7Cba7343e4e100586f5d244bBA0363D2C17A1",
     "mushroomNftLogic": "0x94586f68d6a331c6758701C0267A35b722E21958",
     "mushroomNftProxy": "0xa6e8E562a7253DF0f93567E9430Ee880535225BC",
     "mushroomMetadataLogic": "0xC2437749Eb51480F2A01a7bC5702843fc1E3B7c2",
@@ -28,32 +29,32 @@
         {
             "assetName": "ETH",
             "assetAddress": "0x0000000000000000000000000000000000000000",
-            "sporePool": "0x478EfCfC641784A8bFfE4c191d1078cb4eced228",
-            "mushroomFactory": "0xC8E7Cba7343e4e100586f5d244bBA0363D2C17A1"
+            "sporePool": "0x641ad546748Fc7Ac3362632DEfB6A4115e7DA032",
+            "mushroomFactory": "0x478EfCfC641784A8bFfE4c191d1078cb4eced228"
         },
         {
             "assetName": "UNI",
             "assetAddress": "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984",
-            "sporePool": "0x0DEeB19BFDe602f6c0d91AfAa168D3b071feb636",
-            "mushroomFactory": "0x641ad546748Fc7Ac3362632DEfB6A4115e7DA032"
+            "sporePool": "0x9d0a84D8d85b7305c3F8595AFB65E0A0DB8BB101",
+            "mushroomFactory": "0x0DEeB19BFDe602f6c0d91AfAa168D3b071feb636"
         },
         {
             "assetName": "DAI<>SPORE_Value_LP",
             "assetAddress": "0x89A20E860359382007cfF3EfaA22F697941293CA",
-            "sporePool": "0xc028A8222F90C05945D37aEe9C222E0d9aab6252",
-            "mushroomFactory": "0x9d0a84D8d85b7305c3F8595AFB65E0A0DB8BB101"
+            "sporePool": "0xd3D103B537C472B53e9AC9B6cE919b589110e70D",
+            "mushroomFactory": "0xc028A8222F90C05945D37aEe9C222E0d9aab6252"
         },
         {
             "assetName": "ENOKI<>ETH_Uni_LP",
             "assetAddress": "0x284fa4627AF7Ad1580e68481D0f9Fc7e5Cf5Cf77",
-            "sporePool": "0x7435842CF19f64F1F8C9fCc37c1E30AceBD8aFd6",
-            "mushroomFactory": "0xd3D103B537C472B53e9AC9B6cE919b589110e70D"
+            "sporePool": "0xFbBd14F8b6E14fad05C7b70031c51C6f0a32aac7",
+            "mushroomFactory": "0x7435842CF19f64F1F8C9fCc37c1E30AceBD8aFd6"
         },
         {
             "assetName": "SPORE<>ETH_Uni_LP",
             "assetAddress": "0x3eb9833BBEA994287A2227E3fEBa0D3Dc5D99F05",
-            "sporePool": "0x81DD3253FF50E2F120f8818f421c978eb7aDa428",
-            "mushroomFactory": "0xFbBd14F8b6E14fad05C7b70031c51C6f0a32aac7"
+            "sporePool": "0x7a57EE1a95c06B50c2375Bf58017c61fd443bF52",
+            "mushroomFactory": "0x81DD3253FF50E2F120f8818f421c978eb7aDa428"
         }
     ]
 }

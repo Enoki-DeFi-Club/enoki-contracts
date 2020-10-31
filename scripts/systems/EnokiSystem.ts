@@ -23,6 +23,7 @@ import GeyserEscrow from "../../artifacts/GeyserEscrow.json";
 
 import EthVesting from "../../artifacts/EthVesting.json";
 import BannedContractList from "../../artifacts/BannedContractList.json";
+import SporePoolEth from "../../artifacts/SporePoolEth.json";
 
 import TokenVesting from "../../artifacts/TokenVesting.json";
 import PaymentSplitter from "../../artifacts/PaymentSplitter.json";
@@ -96,6 +97,7 @@ export class EnokiSystem {
     lpTokenVesting!: Contract;
 
     sporePoolLogic!: Contract;
+    sporePoolEthLogic!: Contract;
     mushroomFactoryLogic!: Contract;
 
     mushroomNftLogic!: Contract;
@@ -830,10 +832,12 @@ export class EnokiSystem {
         const {config, deployer} = this;
 
         this.sporePoolLogic = await deployContract(deployer, SporePool);
+        this.sporePoolEthLogic = await deployContract(deployer, SporePoolEth);
         this.mushroomFactoryLogic = await deployContract(deployer, MushroomFactory);
 
         console.log(`Deployed SporePool Logic
             sporePoolLogic: ${this.sporePoolLogic.address}
+            sporePoolEthLogic: ${this.sporePoolEthLogic.address}
             mushroomFactoryLogic: ${this.mushroomFactoryLogic.address}
         `);
 
@@ -874,31 +878,62 @@ export class EnokiSystem {
             );
 
             console.log(`   Deploying Spore Pool Proxy...`);
-            const sporePoolProxy = await deployContract(
-                deployer,
-                AdminUpgradeabilityProxy,
-                [
-                    this.sporePoolLogic.address,
-                    this.proxyAdmin.address,
-                    sporePoolIface.encodeFunctionData("initialize", [
-                        this.sporeToken.address,
-                        poolConfig.assetAddress,
-                        mushroomFactoryProxy.address,
-                        this.missionsProxy.address,
-                        this.bannedContractList.address,
-                        this.devMultisig.ethersContract.address,
-                        this.enokiDaoAgent.address,
-                        [
-                            BN(10), // devRewardPercentage
-                            config.poolGlobals.stakingStartTime, // stakingEnabledTime
-                            config.poolGlobals.votingStartTime, // votingEnabledTime
-                            config.poolGlobals.voteDuration, // voteDuration
-                            poolConfig.initialSporesPerWeek.div(daysToSeconds(7)), // rewardRate (per second)
-                        ],
-                    ]),
-                ],
-                this.overrides
-            );
+            let sporePoolProxy: Contract;
+
+            // Deploy ETH variant for ETH
+            if (poolConfig.assetName === 'ETH') {
+                sporePoolProxy = await deployContract(
+                    deployer,
+                    AdminUpgradeabilityProxy,
+                    [
+                        this.sporePoolEthLogic.address,
+                        this.proxyAdmin.address,
+                        sporePoolIface.encodeFunctionData("initialize", [
+                            this.sporeToken.address,
+                            poolConfig.assetAddress,
+                            mushroomFactoryProxy.address,
+                            this.missionsProxy.address,
+                            this.bannedContractList.address,
+                            this.devMultisig.ethersContract.address,
+                            this.enokiDaoAgent.address,
+                            [
+                                BN(10), // devRewardPercentage
+                                config.poolGlobals.stakingStartTime, // stakingEnabledTime
+                                config.poolGlobals.votingStartTime, // votingEnabledTime
+                                config.poolGlobals.voteDuration, // voteDuration
+                                poolConfig.initialSporesPerWeek.div(daysToSeconds(7)), // rewardRate (per second)
+                            ],
+                        ]),
+                    ],
+                    this.overrides
+                );
+            } else {
+                sporePoolProxy = await deployContract(
+                    deployer,
+                    AdminUpgradeabilityProxy,
+                    [
+                        this.sporePoolLogic.address,
+                        this.proxyAdmin.address,
+                        sporePoolIface.encodeFunctionData("initialize", [
+                            this.sporeToken.address,
+                            poolConfig.assetAddress,
+                            mushroomFactoryProxy.address,
+                            this.missionsProxy.address,
+                            this.bannedContractList.address,
+                            this.devMultisig.ethersContract.address,
+                            this.enokiDaoAgent.address,
+                            [
+                                BN(10), // devRewardPercentage
+                                config.poolGlobals.stakingStartTime, // stakingEnabledTime
+                                config.poolGlobals.votingStartTime, // votingEnabledTime
+                                config.poolGlobals.voteDuration, // voteDuration
+                                poolConfig.initialSporesPerWeek.div(daysToSeconds(7)), // rewardRate (per second)
+                            ],
+                        ]),
+                    ],
+                    this.overrides
+                );
+            }
 
             this.missionPools.push({
                 assetName: poolConfig.assetName,

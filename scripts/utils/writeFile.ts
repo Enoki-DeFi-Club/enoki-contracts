@@ -16,6 +16,8 @@ export function exportEnokiSystem(enoki: EnokiSystem) {
         lpTokenVesting: enoki.lpTokenVesting.address,
     
         sporePoolLogic: enoki.sporePoolLogic.address,
+        sporePoolEthLogic: enoki.sporePoolEthLogic.address,
+
         mushroomFactoryLogic: enoki.mushroomFactoryLogic.address,
     
         mushroomNftLogic: enoki.mushroomNftLogic.address,

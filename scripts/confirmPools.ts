@@ -3,9 +3,9 @@ import {EnokiSystem} from "./systems/EnokiSystem";
 import {BigNumber, utils} from "ethers";
 import {expect} from "chai";
 import {getCurrentTimestamp} from "./utils/timeUtils";
-import {BN} from "./utils/shorthand";
+import {BN, ETH} from "./utils/shorthand";
 
-export async function confirmPools(enoki: EnokiSystem, config: LaunchConfig) {
+export async function confirmPools(enoki: EnokiSystem, testmode: boolean) {
     /*
         __EnokiGeyser__
         Verify basic params:
@@ -69,11 +69,18 @@ export async function confirmPools(enoki: EnokiSystem, config: LaunchConfig) {
         "enoki.enokiGeyserProxy.mushroomMetadata()"
     ).to.be.equal(enoki.mushroomMetadataProxy.address);
 
-    expect(
-        await enoki.enokiGeyserProxy.totalLockedShares(),
-        "enoki.enokiGeyserProxy.totalLockedShares()"
-    ).to.be.equal(BN(0));
-
+    if (testmode) {
+        expect(
+            await enoki.enokiGeyserProxy.totalLockedShares(),
+            "enoki.enokiGeyserProxy.totalLockedShares()"
+        ).to.be.equal(ETH("1000000000")); // Amount * 10**6
+    } else {
+        expect(
+            await enoki.enokiGeyserProxy.totalLockedShares(),
+            "enoki.enokiGeyserProxy.totalLockedShares()"
+        ).to.be.equal(BN(0)); 
+    }
+    
     expect(
         await enoki.enokiGeyserProxy.totalStakingShares(),
         "enoki.enokiGeyserProxy.totalStakingShares()"
@@ -99,11 +106,17 @@ export async function confirmPools(enoki: EnokiSystem, config: LaunchConfig) {
         "enoki.enokiGeyserProxy.getDistributionToken()"
     ).to.be.equal(enoki.enokiToken.address);
 
-    expect(
-        await enoki.enokiGeyserProxy.totalLocked(),
-        "enoki.enokiGeyserProxy.totalLocked()"
-    ).to.be.equal(BN(0));
-
+    if (testmode) {
+        expect(
+            await enoki.enokiGeyserProxy.totalLocked(),
+            "enoki.enokiGeyserProxy.totalLocked()"
+        ).to.be.equal(ETH("1000"));
+    } else {
+        expect(
+            await enoki.enokiGeyserProxy.totalLocked(),
+            "enoki.enokiGeyserProxy.totalLocked()"
+        ).to.be.equal(BN(0));
+    }
     expect(
         await enoki.enokiGeyserProxy.totalUnlocked(),
         "enoki.enokiGeyserProxy.totalUnlocked()"

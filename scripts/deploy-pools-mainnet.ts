@@ -18,7 +18,7 @@ async function main() {
         deployed
     );
 
-    const updated = await deployPools(enoki);
+    const updated = await deployPools(enoki, false);
     enoki = updated.enoki;
 }
 

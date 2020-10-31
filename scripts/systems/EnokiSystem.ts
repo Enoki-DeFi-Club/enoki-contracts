@@ -3,6 +3,7 @@ import {
     LaunchConfig,
     MushroomType,
     WHALES,
+    WHALE_AMOUNT,
 } from "../config/launchConfig";
 import {deployContract} from "ethereum-waffle";
 import ethers, {
@@ -70,8 +71,9 @@ import {
     mushroomMetadataIface,
     mushroomResolverIface,
     missionIface,
+    geyserEscrowIface,
 } from "../utils/interfaces";
-import {BN} from "../utils/shorthand";
+import {BN, ETH} from "../utils/shorthand";
 
 export interface UniswapPool {
     assetName: string;
@@ -332,6 +334,86 @@ export class EnokiSystem {
                 this.overrides
             )
         ).wait();
+    }
+
+    async distributeTestAssets(recipients: string[]) {
+        const {config, deployer, web3} = this;
+
+        // Create a web3 contract instance for asset address, if not ETH
+        // Transfer from whale to the recipients (special for ETH)
+
+        for (const poolConfig of config.pools) {
+
+            // Only some assets have whales defined
+            if (!WHALES[poolConfig.assetName]) {
+                continue;
+            }
+
+            // Ensure All Whales have ETH
+            if (poolConfig.assetName !== "ETH") {
+                await web3.eth.sendTransaction({
+                    from: WHALES["ETH"],
+                    to: WHALES[poolConfig.assetName],
+                    value: utils.parseEther("5").toString(),
+                });
+            }
+
+            console.log(poolConfig.assetName)
+            if (poolConfig.assetName === "ETH") {
+                for (const recipient of recipients) {
+                    const amount = WHALE_AMOUNT["ETH"].div(recipients.length);
+                    await web3.eth.sendTransaction({
+                        from: WHALES["ETH"],
+                        to: recipient,
+                        value: amount.toString(),
+                    });
+
+                    console.log(
+                        `Distributed ${utils.formatEther(
+                            amount
+                        )} test ${poolConfig.assetName} to ${recipient}`
+                    );
+                }
+            } else {
+                const token = new web3.eth.Contract(
+                    SporeToken.abi,
+                    poolConfig.assetAddress
+                );
+
+                const whaleBalance = await token.methods.balanceOf(WHALES[poolConfig.assetName]);
+                console.log('whaleBalance', whaleBalance.toString());
+                
+                for (const recipient of recipients) {
+                    const amount = WHALE_AMOUNT[poolConfig.assetName].div(recipients.length);
+                    await token.methods
+                        .transfer(recipient, amount.toString())
+                        .send({from: WHALES[poolConfig.assetName]});
+
+                    console.log(
+                        `Distributed ${utils.formatEther(
+                            amount
+                        )} test ${poolConfig.assetName} to ${recipient}`
+                    );
+                }
+            }
+        }
+    }
+
+    async sendEnokiToGeyser() {
+        const {config, deployer} = this;
+
+        const result = await this.devMultisig.execDirectly(
+            {
+                to: this.enokiGeyserEscrow.address,
+                data: geyserEscrowIface.encodeFunctionData("lockTokens", [
+                    ETH("1000"),
+                    daysToSeconds(60),
+                ]),
+            },
+            deployer
+        );
+
+        console.log(result);
     }
 
     async lockEnokiInGeyserEscrow() {

@@ -29,7 +29,7 @@ async function main() {
         deployed
     );
 
-    const updated = await deployPools(enoki);
+    const updated = await deployPools(enoki, true);
     enoki = updated.enoki;
 }
 

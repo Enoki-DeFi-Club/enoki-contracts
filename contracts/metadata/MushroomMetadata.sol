@@ -24,6 +24,10 @@ contract MushroomMetadata is OwnableUpgradeSafe {
         return metadataResolvers[nftContract] != address(0);
     }
 
+    function getMetadataResolver(address nftContract) external view returns (address) {
+        return metadataResolvers[nftContract];
+    }
+
     function initialize() public initializer {
         __Ownable_init();
     }

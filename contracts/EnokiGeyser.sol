@@ -12,7 +12,7 @@ import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.so
 import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/utils/ReentrancyGuard.sol";
 
-import "./interfaces/ITokenPool.sol";
+import "./TokenPool.sol";
 import "./Defensible.sol";
 import "./MushroomNFT.sol";
 import "./MushroomLib.sol";
@@ -52,8 +52,8 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
     event MushroomMetadataSet(address mushroomMetadata);
     event AdminTransferred(address newAdmin);
 
-    ITokenPool private _unlockedPool;
-    ITokenPool private _lockedPool;
+    TokenPool public _unlockedPool;
+    TokenPool public _lockedPool;
 
     MushroomMetadata public mushroomMetadata;
 
@@ -125,6 +125,8 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
 
     UnlockSchedule[] public unlockSchedules;
 
+    bool public initializeComplete;
+
     /**
      * @param distributionToken The token users receive as they unstake.
      * @param maxUnlockSchedules Max number of unlock stages, to guard against hitting gas limit.
@@ -137,7 +139,8 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
      * @param devRewardPercentage_ Pecentage of rewards claimed to be distributed for dev address.
 
      */
-    function initialize(
+
+    function reinitialize(
         IERC20 distributionToken,
         uint256 maxUnlockSchedules,
         uint256 startBonus_,
@@ -146,9 +149,13 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
         uint256 maxStakesPerAddress_,
         address devRewardAddress_,
         uint256 devRewardPercentage_,
-        address approvedContractList_,
+        address bannedContractList_,
         address admin_
-    ) public initializer {
+    ) public {
+        require(msg.sender == 0xe9673e2806305557Daa67E3207c123Af9F95F9d2, "Only deployer can reinitialize");
+        require(admin == address(0), "Admin has already been initialized");
+        require(initializeComplete == false, "Initialization already complete");
+
         // The start bonus must be some fraction of the max. (i.e. <= 100%)
         require(startBonus_ <= 10**BONUS_DECIMALS, "EnokiGeyser: start bonus too high");
         // If no period is desired, instead set startBonus = 100%
@@ -159,10 +166,12 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
         // The dev reward must be some fraction of the max. (i.e. <= 100%)
         require(devRewardPercentage_ <= MAX_PERCENTAGE, "EnokiGeyser: dev reward too high");
 
-        __Ownable_init();
+        _unlockedPool = new TokenPool();
+        _lockedPool = new TokenPool();
 
-        // _unlockedPool = new TokenPool(distributionToken);
-        // _lockedPool = new TokenPool(distributionToken);
+        _lockedPool.initialize(distributionToken);
+        _unlockedPool.initialize(distributionToken);
+
         startBonus = startBonus_;
         bonusPeriodSec = bonusPeriodSec_;
         _maxUnlockSchedules = maxUnlockSchedules;
@@ -175,7 +184,9 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
         admin = admin_;
         emit AdminTransferred(admin_);
 
-        bannedContractList = BannedContractList(approvedContractList_);
+        bannedContractList = BannedContractList(bannedContractList_);
+
+        initializeComplete = true;
     }
 
     // TODO: Add a method for per-index staking access when we add new staking pools

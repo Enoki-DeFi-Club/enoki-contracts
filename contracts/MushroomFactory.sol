@@ -34,12 +34,18 @@ contract MushroomFactory is Initializable, OwnableUpgradeSafe {
     function initialize(
         IERC20 sporeToken_,
         MushroomNFT mushroomNft_,
-        uint256 costPerMushroom_
+        uint256 costPerMushroom_,
+        uint256 mySpecies_,
+        MushroomMetadata mushroomMetadata_
     ) public initializer {
         __Ownable_init();
         sporeToken = sporeToken_;
         mushroomNft = mushroomNft_;
         costPerMushroom = costPerMushroom_;
+
+        mySpecies = mySpecies_;
+
+        mushroomMetadata = mushroomMetadata_;
     }
 
     /*

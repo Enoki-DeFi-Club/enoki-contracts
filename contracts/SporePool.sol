@@ -55,8 +55,8 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
     address public enokiDaoAgent;
 
     // In percentage: mul(X).div(100)
-    uint256 public decreaseRateMultiplier = 50;
-    uint256 public increaseRateMultiplier = 150;
+    uint256 public decreaseRateMultiplier;
+    uint256 public increaseRateMultiplier;
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -80,6 +80,9 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         mushroomFactory = IMushroomFactory(_mushroomFactory);
         mission = IMission(_mission);
         bannedContractList = BannedContractList(_bannedContractList);
+
+        decreaseRateMultiplier = 50;
+        increaseRateMultiplier = 150;
 
         /*
             [0] uint256 _devRewardPercentage,
@@ -189,9 +192,9 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         }
     }
 
-    function exit() external {
+    // Withdraw, forfietting all rewards
+    function emergencyWithdraw() external {
         withdraw(_balances[msg.sender]);
-        harvest(0);
     }
 
     /*

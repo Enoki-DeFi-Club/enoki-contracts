@@ -28,6 +28,11 @@ const config: BuidlerConfig = {
             accounts: {mnemonic: process.env.MNEMONIC!},
             timeout: 0,
         },
+        forknet: {
+            url: process.env.FORKNET_NODE_URL!,
+            accounts: {mnemonic: process.env.MNEMONIC!},
+            timeout: 0,
+        },
         mainnet: {
             url: process.env.MAINNET_NODE_URL!,
             accounts: {mnemonic: process.env.MNEMONIC!},

@@ -76,7 +76,12 @@ export async function deployPools(
   await enoki.setupMushroomInfra();
   console.log("");
 
-  // await confirmPools(enoki, enoki.config);
+  console.log(colors.title("---Transfer Remaining Ownership to Dev Multisig---"));
+  // await enoki.setupMushroomInfra();
+  console.log("");
+
+  console.log(colors.title("---Confirming Deploy Parameters---"));
+  await confirmPools(enoki, enoki.config);
 
   return { enoki };
 }

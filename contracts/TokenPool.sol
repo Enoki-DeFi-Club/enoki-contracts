@@ -1,17 +1,18 @@
 pragma solidity ^0.6.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
 
 /**
  * @title A simple holder of tokens.
  * This is a simple contract to hold tokens. It's useful in the case where a separate contract
  * needs to hold multiple distinct pools of the same token.
  */
-contract TokenPool is Ownable {
+contract TokenPool is Initializable, OwnableUpgradeSafe {
     IERC20 public token;
 
-    constructor(IERC20 _token) public {
+    function initialize(IERC20 _token) public initializer {
+        __Ownable_init();
         token = _token;
     }
 

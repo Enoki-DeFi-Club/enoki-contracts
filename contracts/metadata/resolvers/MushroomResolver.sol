@@ -16,10 +16,12 @@ contract MushroomResolver is Initializable, OwnableUpgradeSafe, MetadataResolver
     using MushroomLib for MushroomLib.MushroomType;
 
     MushroomNFT public mushroomNft;
+    address public lifespanManager;
 
-    function initialize(address mushroomNft_) public initializer {
+    function initialize(address mushroomNft_, address lifespanManager_) public initializer {
         __Ownable_init();
         mushroomNft = MushroomNFT(mushroomNft_);
+        lifespanManager = lifespanManager_;
     }
 
     function getMushroomData(uint256 index, bytes calldata data) external view override returns (MushroomLib.MushroomData memory) {
@@ -33,6 +35,7 @@ contract MushroomResolver is Initializable, OwnableUpgradeSafe, MetadataResolver
     }
 
     function setMushroomLifespan(uint256 index, uint256 lifespan, bytes calldata data) external override {
+        require(msg.sender == lifespanManager, "Only lifespanManager can request mushroom lifespan set");
         mushroomNft.setMushroomLifespan(index, lifespan);
     }
 }

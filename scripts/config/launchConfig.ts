@@ -139,6 +139,13 @@ const mushroomConfig: MushroomConfig = [
 // Take mainnet assets from whales on local forked mainnet
 export const WHALES = {};
 WHALES["ETH"] = utils.getAddress("0x742d35cc6634c0532925a3b844bc454e4438f44e");
+WHALES["UNI"] = utils.getAddress("0x9f41cecc435101045ea9f41d4ee8c5353f77e5d5");
+WHALES["SPORE<>ETH_Uni_LP"] = utils.getAddress("0x632a84dc35a1e43b8196b2d08630dc9e6a1f3692");
+
+export const WHALE_AMOUNT = {};
+WHALE_AMOUNT["ETH"] = ETH("10000")
+WHALE_AMOUNT["UNI"] = ETH("1000000")
+WHALE_AMOUNT["SPORE<>ETH_Uni_LP"] = ETH("200")
 
 const MAINNET = {
     externalContracts: {

@@ -43,6 +43,7 @@ export interface LaunchFlags {
 
 export async function deployPools(
   enoki: EnokiSystem,
+  testmode: boolean
 ): Promise<{
   enoki: EnokiSystem;
 }> {
@@ -50,9 +51,22 @@ export async function deployPools(
   await enoki.deployBannedContractList();
   console.log("");
 
-  console.log(colors.title("---Upgrade Enoki Geyser---"));
-  await enoki.upgradeEnokiGeyser();
-  console.log("");
+  if (testmode) {
+    console.log(colors.title("---TEST ONLY: Distribute Assets from Whales---"));
+    await enoki.distributeTestAssets([
+      "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+      "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0",
+      "0xe9673e2806305557Daa67E3207c123Af9F95F9d2",
+      "0x482c741b0711624d1f462E56EE5D8f776d5970dC"
+    ]);
+
+    console.log(colors.title("---TEST ONLY: Upgrade Enoki Geyser---"));
+    await enoki.upgradeEnokiGeyser();
+    console.log("");
+
+    console.log(colors.title("---TEST ONLY: Lock Enoki in Geyser---"));
+    await enoki.sendEnokiToGeyser();
+  }
 
   console.log(colors.title("---Deploy Mushroom NFT---"));
   await enoki.deployMushroomNft();
@@ -75,7 +89,7 @@ export async function deployPools(
   await enoki.setupMission0Pools();
 
   console.log(colors.title("---Confirming Deploy Parameters---"));
-  await confirmPools(enoki, enoki.config);
+  await confirmPools(enoki, testmode);
 
   exportEnokiSystem(enoki);
 

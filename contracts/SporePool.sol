@@ -140,6 +140,7 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         emit Staked(msg.sender, amount);
     }
 
+    // Withdrawing does not harvest, the rewards must be harvested separately
     function withdraw(uint256 amount) public virtual nonReentrant updateReward(msg.sender) {
         require(amount > 0, "Cannot withdraw 0");
         _totalSupply = _totalSupply.sub(amount);
@@ -166,7 +167,6 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
                 require(reward >= totalCost, "Not enough rewards to grow the number of mushrooms specified");
 
                 uint256 toDev = totalCost.mul(devRewardPercentage).div(MAX_PERCENTAGE);
-                sporeToken.burn(totalCost.sub(toDev));
 
                 if (toDev > 0) {
                     mission.sendSpores(devRewardAddress, toDev);

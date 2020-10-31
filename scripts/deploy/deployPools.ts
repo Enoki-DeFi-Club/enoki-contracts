@@ -5,7 +5,6 @@ import dotenv from "dotenv";
 import { providers, Signer } from "ethers";
 import { confirmCore } from "../confirmCore";
 import { deployed } from "./deployed";
-import { confirmNewGeyser } from "../confirmNewGeyser";
 import { confirmPools } from "../confirmPools";
 import { exportEnokiSystem } from "../utils/writeFile";
 export const colors = require("colors/safe");
@@ -55,10 +54,6 @@ export async function deployPools(
   await enoki.upgradeEnokiGeyser();
   console.log("");
 
-  console.log(colors.title("---Confirm all variables of upgraded Geyser---"));
-  await confirmNewGeyser(enoki, enoki.config);
-  console.log("");
-
   console.log(colors.title("---Deploy Mushroom NFT---"));
   await enoki.deployMushroomNft();
   console.log("");
@@ -76,9 +71,8 @@ export async function deployPools(
   await enoki.setupMushroomInfra();
   console.log("");
 
-  console.log(colors.title("---Transfer Remaining Ownership to Dev Multisig---"));
-  // await enoki.setupMushroomInfra();
-  console.log("");
+  console.log(colors.title("---Add Pools to Mission---"));
+  await enoki.setupMission0Pools();
 
   console.log(colors.title("---Confirming Deploy Parameters---"));
   await confirmPools(enoki, enoki.config);

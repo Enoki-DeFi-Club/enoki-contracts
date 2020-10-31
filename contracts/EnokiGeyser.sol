@@ -225,6 +225,29 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
         return _unlockedPool.token();
     }
 
+    function getNumStakes(address user) external view returns (uint256) {
+        return _userStakes[user].length;
+    }
+
+    function getStakes(address user) external view returns (Stake[] memory) {
+        uint256 numStakes = _userStakes[user].length;
+        Stake[] memory stakes = new Stake[](numStakes);
+
+        for (uint256 i = 0; i < _userStakes[user].length; i++) {
+            stakes[i] = _userStakes[user][i];
+        }
+        return stakes;
+    }
+
+    function getStake(address user, uint256 stakeIndex)
+        external
+        view
+        returns (Stake memory stake)
+    {
+        Stake storage _userStake = _userStakes[user][stakeIndex];
+        stake = _userStake;
+    }
+
     /**
      * @dev Transfers amount of deposit tokens from the user.
      * @param data Not used.

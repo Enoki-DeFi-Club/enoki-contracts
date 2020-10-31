@@ -69,6 +69,7 @@ import {
     mushroomNftIface,
     mushroomMetadataIface,
     mushroomResolverIface,
+    missionIface,
 } from "../utils/interfaces";
 import {BN} from "../utils/shorthand";
 
@@ -164,6 +165,7 @@ export class EnokiSystem {
 
         // For local testnet fork, use --unlock option for accounts to sign with
         this.web3 = new Web3("http://localhost:8545");
+        // this.web3 = new Web3(process.env.FORKNET_NODE_URL);
         this.flags = flags;
         this.fastGasPrice = utils.parseUnits("100", "gwei");
         console.log(`Fast Gas Price: ${this.fastGasPrice.toString()}`);
@@ -529,7 +531,6 @@ export class EnokiSystem {
         };
     }
 
-
     async deployMushroomNft() {
         const {logic, proxy} = await this.deployLogicAndProxy(
             MushroomNFT,
@@ -824,6 +825,26 @@ export class EnokiSystem {
         // ).wait();
     }
 
+    async setupMission0Pools() {
+        const {config, deployer} = this;
+
+        for (const pool of this.missionPools) {
+            await this.devMultisig.execDirectly(
+                {
+                    to: this.missionsProxy.address,
+                    data: missionIface.encodeFunctionData("approvePool", [
+                        pool.sporePool.address,
+                    ]),
+                },
+                deployer
+            );
+
+            console.log(
+                `Added SporePool for ${pool.assetName} to Approved Mission Pools`
+            );
+        }
+    }
+
     /*
         Each pool will be a proxy to reduce gas costs
     */
@@ -881,7 +902,7 @@ export class EnokiSystem {
             let sporePoolProxy: Contract;
 
             // Deploy ETH variant for ETH
-            if (poolConfig.assetName === 'ETH') {
+            if (poolConfig.assetName === "ETH") {
                 sporePoolProxy = await deployContract(
                     deployer,
                     AdminUpgradeabilityProxy,

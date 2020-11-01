@@ -222,14 +222,20 @@ const MAINNET = {
         {
             assetName: "ETH",
             assetAddress: constants.AddressZero,
-            initialSporesPerWeek: ETH("560"),
+            initialSporesPerWeek: ETH("280"),
             mushroomSpecies: BN(0), // Scheming Amanita
         },
         {
-            assetName: "UNI",
-            assetAddress: addr("0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"),
-            initialSporesPerWeek: ETH("860"),
+            assetName: "FARM",
+            assetAddress: addr("0xa0246c9032bc3a600820415ae600c6388619a14d"),
+            initialSporesPerWeek: ETH("360"),
             mushroomSpecies: BN(1), // Madam Morel
+        },
+        {
+            assetName: "SPORE",
+            assetAddress: addr("0xa4Bad5d040d4464EC5CE130987731F2f428c9307"),
+            initialSporesPerWeek: ETH("860"),
+            mushroomSpecies: BN(2), // Boisterous Bolete
         },
         {
             assetName: "ENOKI<>ETH_Uni_LP",

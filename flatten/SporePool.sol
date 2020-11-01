@@ -835,6 +835,39 @@ interface IMission  {
     function revokePool(address pool) external;
 }
 
+// Dependency file: contracts/interfaces/IMiniMe.sol
+
+
+// pragma solidity ^0.6.0;
+
+interface IMiniMe {
+    /* ========== STANDARD ERC20 ========== */
+    function totalSupply() external view returns (uint256);
+
+    function balanceOf(address account) external view returns (uint256);
+
+    function transfer(address recipient, uint256 amount) external returns (bool);
+
+    function allowance(address owner, address spender) external view returns (uint256);
+
+    function approve(address spender, uint256 amount) external returns (bool);
+
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    /* ========== MINIME EXTENSIONS ========== */
+
+    function balanceOfAt(address account, uint256 blockNumber) external view returns (uint256);
+    function totalSupplyAt(uint256 blockNumber) external view returns (uint256);
+}
+
+
 // Dependency file: contracts/interfaces/ISporeToken.sol
 
 
@@ -881,7 +914,7 @@ interface ISporeToken {
 
 
 pragma solidity ^0.6.0;
-pragma experimental ABIEncoderV2;
+// pragma experimental ABIEncoderV2;
 
 // import "@openzeppelin/contracts-ethereum-package/contracts/math/Math.sol";
 // import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
@@ -894,12 +927,18 @@ pragma experimental ABIEncoderV2;
 // import "contracts/Defensible.sol";
 // import "contracts/interfaces/IMushroomFactory.sol";
 // import "contracts/interfaces/IMission.sol";
+// import "contracts/interfaces/IMiniMe.sol";
 // import "contracts/interfaces/ISporeToken.sol";
 // import "contracts/BannedContractList.sol";
 
 /*
-    Can be paused by the owner
-    The mushroomFactory must be set by the owner before mushrooms can be harvested (optionally), and can be modified to use new mushroom spawning logic
+    Staking can be paused by the owner (withdrawing & harvesting cannot be paused)
+    
+    The mushroomFactory must be set by the owner before mushrooms can be harvested (optionally)
+    It and can be modified, to use new mushroom spawning logic
+
+    The rateVote contract has control over the spore emission rate. 
+    It can be modified, to change the voting logic around rate changes.
 */
 contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUpgradeSafe, Defensible {
     using SafeMath for uint256;
@@ -929,16 +968,11 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
 
     uint256 public stakingEnabledTime;
 
-    uint256 public votingEnabledTime;
-    uint256 public nextVoteAllowedAt;
-    uint256 public lastVoteNonce;
-    uint256 public voteDuration;
+    address public rateVote;
 
+    IMiniMe public enokiToken;
     address public enokiDaoAgent;
-
-    // In percentage: mul(X).div(100)
-    uint256 public decreaseRateMultiplier;
-    uint256 public increaseRateMultiplier;
+    
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -948,8 +982,8 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         address _mission,
         address _bannedContractList,
         address _devRewardAddress,
-        address daoAgent_,
-        uint256[5] memory uintParams
+        address _enokiDaoAgent,
+        uint256[3] memory uintParams
     ) public virtual initializer {
         __Context_init_unchained();
         __Pausable_init_unchained();
@@ -958,32 +992,25 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
 
         sporeToken = ISporeToken(_sporeToken);
         stakingToken = IERC20(_stakingToken);
+
         mission = IMission(_mission);
         bannedContractList = BannedContractList(_bannedContractList);
-
-        decreaseRateMultiplier = 50;
-        increaseRateMultiplier = 150;
 
         /*
             [0] uint256 _devRewardPercentage,
             [1] uint256 stakingEnabledTime_,
-            [2] uint256 votingEnabledTime_,
-            [3] uint256 voteDuration_,
-            [4] uint256 initialRewardRate_,
+            [2] uint256 initialRewardRate_,
         */
-
-        sporesPerSecond = uintParams[4];
 
         devRewardPercentage = uintParams[0];
         devRewardAddress = _devRewardAddress;
 
         stakingEnabledTime = uintParams[1];
-        votingEnabledTime = uintParams[2];
-        nextVoteAllowedAt = uintParams[2];
-        voteDuration = uintParams[3];
-        lastVoteNonce = 0;
+        sporesPerSecond = uintParams[2];
 
-        enokiDaoAgent = daoAgent_;
+        enokiDaoAgent = _enokiDaoAgent;
+
+        emit SporeRateChange(sporesPerSecond);
     }
 
     /* ========== VIEWS ========== */
@@ -1026,7 +1053,7 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
     }
 
     // Withdrawing does not harvest, the rewards must be harvested separately
-    function withdraw(uint256 amount) public virtual nonReentrant updateReward(msg.sender) {
+    function withdraw(uint256 amount) public virtual updateReward(msg.sender) {
         require(amount > 0, "Cannot withdraw 0");
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
@@ -1034,7 +1061,16 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         emit Withdrawn(msg.sender, amount);
     }
 
-    function harvest(uint256 mushroomsToGrow) public nonReentrant updateReward(msg.sender) returns(uint256 toDev, uint256 toDao, uint256 remainingReward) {
+    function harvest(uint256 mushroomsToGrow)
+        public
+        nonReentrant
+        updateReward(msg.sender)
+        returns (
+            uint256 toDev,
+            uint256 toDao,
+            uint256 remainingReward
+        )
+    {
         uint256 reward = rewards[msg.sender];
 
         if (reward > 0) {
@@ -1047,10 +1083,6 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
             if (mushroomsToGrow > 0) {
                 uint256 totalCost = mushroomFactory.costPerMushroom().mul(mushroomsToGrow);
 
-                require(
-                    mushroomsToGrow <= mushroomFactory.getRemainingMintableForMySpecies(mushroomsToGrow),
-                    "Number of mushrooms specified exceeds cap"
-                );
                 require(reward >= totalCost, "Not enough rewards to grow the number of mushrooms specified");
 
                 toDev = totalCost.mul(devRewardPercentage).div(MAX_PERCENTAGE);
@@ -1071,9 +1103,6 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
             }
 
             if (remainingReward > 0) {
-                // TODO: Add safe ERC20 features to spore token
-                // sporeToken.safeTransfer(msg.sender, remainingReward);
-
                 mission.sendSpores(msg.sender, remainingReward);
                 emit RewardPaid(msg.sender, remainingReward);
             }
@@ -1081,36 +1110,8 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
     }
 
     // Withdraw, forfietting all rewards
-    function emergencyWithdraw() nonReentrant external {
+    function emergencyWithdraw() external nonReentrant {
         withdraw(_balances[msg.sender]);
-    }
-
-    /*
-        Votes with a given nonce invalidate other votes with the same nonce
-        This ensures only one rate vote can pass for a given time period
-    */
-
-    function reduceRate(uint256 voteNonce) public onlyDAO nonReentrant {
-        require(now >= votingEnabledTime, "SporePool: Voting not enabled yet");
-        require(now >= nextVoteAllowedAt, "SporePool: Previous rate change vote too soon");
-        require(voteNonce == lastVoteNonce.add(1), "SporePool: Incorrect vote nonce");
-
-        sporesPerSecond = sporesPerSecond.mul(decreaseRateMultiplier).div(MAX_PERCENTAGE);
-
-        nextVoteAllowedAt = now.add(voteDuration);
-        lastVoteNonce = voteNonce.add(1);
-    }
-
-    function increaseRate(uint256 voteNonce) public onlyDAO nonReentrant {
-        require(now >= votingEnabledTime, "SporePool: Voting not enabled yet");
-        require(now >= nextVoteAllowedAt, "SporePool: Previous rate change vote too soon");
-        require(voteNonce == lastVoteNonce.add(1), "SporePool: Incorrect vote nonce");
-
-        // Multiple by 1.5x
-        sporesPerSecond = sporesPerSecond.mul(increaseRateMultiplier).div(MAX_PERCENTAGE);
-
-        nextVoteAllowedAt = now.add(voteDuration);
-        lastVoteNonce = voteNonce.add(1);
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
@@ -1137,6 +1138,14 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         _unpause();
     }
 
+    function setRateVote(address _rateVote) external onlyOwner {
+        rateVote = _rateVote;
+    }
+
+    function changeRate(uint256 percentage) external onlyRateVote {
+        sporesPerSecond = sporesPerSecond.mul(percentage).div(MAX_PERCENTAGE);
+        emit SporeRateChange(sporesPerSecond);
+    }
 
     /* ========== MODIFIERS ========== */
 
@@ -1150,8 +1159,8 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         _;
     }
 
-    modifier onlyDAO {
-        require(msg.sender == enokiDaoAgent, "SporePool: Only Enoki DAO agent can call");
+    modifier onlyRateVote() {
+        require(msg.sender == rateVote, "onlyRateVote");
         _;
     }
 
@@ -1165,4 +1174,5 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
     event DaoRewardPaid(address indexed user, uint256 reward);
     event MushroomsGrown(address indexed user, uint256 number);
     event Recovered(address token, uint256 amount);
+    event SporeRateChange(uint256 newRate);
 }

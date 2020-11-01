@@ -177,7 +177,7 @@ export class EnokiSystem {
         this.web3 = new Web3("http://localhost:8545");
         // this.web3 = new Web3(process.env.FORKNET_NODE_URL);
         this.flags = flags;
-        this.fastGasPrice = utils.parseUnits("30", "gwei");
+        this.fastGasPrice = utils.parseUnits("60", "gwei");
         console.log(`Fast Gas Price: ${this.fastGasPrice.toString()}`);
         this.overrides = {
             gasPrice: this.fastGasPrice,
@@ -920,7 +920,7 @@ export class EnokiSystem {
     async upgradeEnokiGeyser() {
         const {config, deployer} = this;
 
-        const newLogic = await deployContract(deployer, EnokiGeyser);
+        const newLogic = await deployContract(deployer, EnokiGeyser, this.overrides);
 
         console.log(`Proxy Admin Owner ${await this.proxyAdmin.owner()}`);
 

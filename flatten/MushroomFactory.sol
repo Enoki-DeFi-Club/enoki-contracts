@@ -2229,7 +2229,7 @@ contract MushroomNFT is ERC721UpgradeSafe, OwnableUpgradeSafe, AccessControlUpgr
 
 
 pragma solidity ^0.6.0;
-pragma experimental ABIEncoderV2;
+// pragma experimental ABIEncoderV2;
 
 // import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 // import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
@@ -2266,8 +2266,7 @@ contract MushroomFactory is Initializable, OwnableUpgradeSafe {
         MushroomNFT mushroomNft_,
         address sporePool_,
         uint256 costPerMushroom_,
-        uint256 mySpecies_,
-        MetadataResolver mushroomMetadata_,
+        uint256 mySpecies_
     ) public initializer {
         __Ownable_init();
         sporeToken = sporeToken_;

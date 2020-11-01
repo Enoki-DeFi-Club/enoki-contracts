@@ -57,16 +57,6 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
 
     address public rateVote;
 
-    struct VoteEpoch {
-        uint256 startTime;
-        uint256 activeEpoch;
-        uint256 increaseVoteWeight;
-        uint256 decreaseVoteWeight;
-    }
-
-    VoteEpoch public voteEpoch;
-    uint256 public voteDuration;
-
     IMiniMe public enokiToken;
     address public enokiDaoAgent;
     
@@ -150,7 +140,7 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
     }
 
     // Withdrawing does not harvest, the rewards must be harvested separately
-    function withdraw(uint256 amount) public virtual nonReentrant updateReward(msg.sender) {
+    function withdraw(uint256 amount) public virtual updateReward(msg.sender) {
         require(amount > 0, "Cannot withdraw 0");
         _totalSupply = _totalSupply.sub(amount);
         _balances[msg.sender] = _balances[msg.sender].sub(amount);
@@ -180,10 +170,6 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
             if (mushroomsToGrow > 0) {
                 uint256 totalCost = mushroomFactory.costPerMushroom().mul(mushroomsToGrow);
 
-                require(
-                    mushroomsToGrow <= mushroomFactory.getRemainingMintableForMySpecies(mushroomsToGrow),
-                    "Number of mushrooms specified exceeds cap"
-                );
                 require(reward >= totalCost, "Not enough rewards to grow the number of mushrooms specified");
 
                 toDev = totalCost.mul(devRewardPercentage).div(MAX_PERCENTAGE);
@@ -204,9 +190,6 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
             }
 
             if (remainingReward > 0) {
-                // TODO: Add safe ERC20 features to spore token
-                // sporeToken.safeTransfer(msg.sender, remainingReward);
-
                 mission.sendSpores(msg.sender, remainingReward);
                 emit RewardPaid(msg.sender, remainingReward);
             }

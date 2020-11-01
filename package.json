@@ -27,7 +27,7 @@
         "run-testnet": "sh ./run-testnet.sh",
         "deploy-testnet": "npx buidler run scripts/deploy-testnet.ts --show-stack-traces --no-compile --network ganache",
         "deploy-mainnet": "npx buidler run scripts/deploy-mainnet.ts --no-compile --network mainnet",
-        "deploy-pools-testnet": "npx buidler run scripts/deploy-pools-testnet.ts --show-stack-traces --no-compile --network ganache",
+        "deploy-pools-testnet": "npx buidler run scripts/deploy-pools-testnet.ts --show-stack-traces --network ganache",
         "deploy-pools-forknet": "npx buidler run scripts/deploy-pools-testnet.ts --show-stack-traces --no-compile --network forknet",
         "deploy-pools-mainnet": "npx buidler run scripts/deploy-pools-mainnet.ts --no-compile --network mainnet"
 

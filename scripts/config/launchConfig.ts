@@ -32,6 +32,7 @@ export interface MushroomType {
     minLifespan: BigNumber;
     maxLifespan: BigNumber;
     cap: BigNumber;
+    ipfsUri: string;
 }
 
 export interface PoolsConfig {
@@ -97,6 +98,7 @@ const mushroomConfig: MushroomConfig = [
         minLifespan: daysToSeconds(2),
         maxLifespan: daysToSeconds(6),
         cap: BN(1800),
+        ipfsUri: "QmcJB2WthsPWEDUZkU74XW2ebeCTohDL2iYWnjUp7SX6sh",
     },
     {
         speciesName: "Madam Morel",
@@ -106,33 +108,37 @@ const mushroomConfig: MushroomConfig = [
         minLifespan: daysToSeconds(8),
         maxLifespan: daysToSeconds(10),
         cap: BN(860),
+        ipfsUri: "QmVXQb4FgF6vL6wDjuVwzgqtXAWHs8UHgSvr4jfxmbEg4D",
     },
     {
         speciesName: "Boisterous Bolete",
         speciesId: BN(2),
         strength: ETH("3.5"),
-        costPerMushroom: ETH("12"),
-        minLifespan: daysToSeconds(14),
-        maxLifespan: daysToSeconds(28),
+        costPerMushroom: ETH("8"),
+        minLifespan: daysToSeconds(4),
+        maxLifespan: daysToSeconds(8),
         cap: BN(660),
+        ipfsUri: "QmRKUuddtWQUiPKgYTZ96zoKP85BdQYKvKjWv6Eu5eSx6t",
     },
     {
         speciesName: "Enoki",
         speciesId: BN(3),
-        strength: ETH("8"),
-        costPerMushroom: ETH("16"),
-        minLifespan: daysToSeconds(28),
-        maxLifespan: daysToSeconds(56),
-        cap: BN(260),
+        strength: ETH("10"),
+        costPerMushroom: ETH("12"),
+        minLifespan: daysToSeconds(8),
+        maxLifespan: daysToSeconds(16),
+        cap: BN(420),
+        ipfsUri: "QmVhZKpg2TSCQv5JfbdWEa6jFxjsXCV2vtD9s4UTChDM4v",
     },
     {
         speciesName: "Awkward Ironwood",
         speciesId: BN(4),
-        strength: ETH("12"),
-        costPerMushroom: ETH("20"),
-        minLifespan: daysToSeconds(28),
-        maxLifespan: daysToSeconds(42),
-        cap: BN(130),
+        strength: ETH("6"),
+        costPerMushroom: ETH("14"),
+        minLifespan: daysToSeconds(12),
+        maxLifespan: daysToSeconds(18),
+        cap: BN(260),
+        ipfsUri: "QmVhZKpg2TSCQv5JfbdWEa6jFxjsXCV2vtD9s4UTChDM4a",
     },
 ];
 
@@ -140,12 +146,14 @@ const mushroomConfig: MushroomConfig = [
 export const WHALES = {};
 WHALES["ETH"] = utils.getAddress("0x742d35cc6634c0532925a3b844bc454e4438f44e");
 WHALES["UNI"] = utils.getAddress("0x9f41cecc435101045ea9f41d4ee8c5353f77e5d5");
-WHALES["SPORE<>ETH_Uni_LP"] = utils.getAddress("0x632a84dc35a1e43b8196b2d08630dc9e6a1f3692");
+WHALES["SPORE<>ETH_Uni_LP"] = utils.getAddress(
+    "0x632a84dc35a1e43b8196b2d08630dc9e6a1f3692"
+);
 
 export const WHALE_AMOUNT = {};
-WHALE_AMOUNT["ETH"] = ETH("10000")
-WHALE_AMOUNT["UNI"] = ETH("1000000")
-WHALE_AMOUNT["SPORE<>ETH_Uni_LP"] = ETH("200")
+WHALE_AMOUNT["ETH"] = ETH("10000");
+WHALE_AMOUNT["UNI"] = ETH("1000000");
+WHALE_AMOUNT["SPORE<>ETH_Uni_LP"] = ETH("200");
 
 const MAINNET = {
     externalContracts: {
@@ -206,10 +214,8 @@ const MAINNET = {
     },
     poolGlobals: {
         // TODO: Reset to real values
-        // stakingStartTime: BN(1604167200), // 10/31/2020 @ 6:00pm (UTC)
-        // votingStartTime: BN(1604167200).add(daysToSeconds(7)), // 10/31/2020 @ 6:00pm (UTC)
-        stakingStartTime: BN(1604104277),
-        votingStartTime: BN(1604104277).add(daysToSeconds(7)),
+        stakingStartTime: BN(1604253600), // 10/31/2020 @ 6:00pm (UTC)
+        votingStartTime: BN(1604253600).add(daysToSeconds(7)), // 10/31/2020 @ 6:00pm (UTC)
         voteDuration: daysToSeconds(7),
     },
     pools: [
@@ -226,14 +232,8 @@ const MAINNET = {
             mushroomSpecies: BN(1), // Madam Morel
         },
         {
-            assetName: "DAI<>SPORE_Value_LP",
-            assetAddress: addr("0x89a20e860359382007cff3efaa22f697941293ca"),
-            initialSporesPerWeek: ETH("180"),
-            mushroomSpecies: BN(2), // Boisterous Bolete
-        },
-        {
             assetName: "ENOKI<>ETH_Uni_LP",
-            assetAddress: addr("0x284fa4627af7ad1580e68481d0f9fc7e5cf5cf77"),
+            assetAddress: addr("0x284fa4627AF7Ad1580e68481D0f9Fc7e5Cf5Cf77"),
             initialSporesPerWeek: ETH("1660"),
             mushroomSpecies: BN(3), // Enoki
         },

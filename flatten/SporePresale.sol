@@ -907,6 +907,7 @@ library SafeERC20 {
 
 // Dependency file: contracts/SporeToken.sol
 
+
 // pragma solidity ^0.6.0;
 
 // import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -996,6 +997,7 @@ contract SporeToken is ERC20("SporeFinance", "SPORE"), Ownable {
 
 
 // Root file: contracts/SporePresale.sol
+
 
 pragma solidity ^0.6.0;
 

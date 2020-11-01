@@ -23,11 +23,11 @@ export function exportEnokiSystem(enoki: EnokiSystem) {
         mushroomNftLogic: enoki.mushroomNftLogic.address,
         mushroomNftProxy: enoki.mushroomNftProxy.address,
     
-        mushroomMetadataLogic: enoki.mushroomMetadataLogic.address,
-        mushroomMetadataProxy: enoki.mushroomMetadataProxy.address,
+        metadataResolverLogic: enoki.metadataResolverLogic.address,
+        metadataResolverProxy: enoki.metadataResolverProxy.address,
     
-        mushroomResolverLogic: enoki.mushroomResolverLogic.address,
-        mushroomResolverProxy: enoki.mushroomResolverProxy.address,
+        mushroomAdapterLogic: enoki.mushroomAdapterLogic.address,
+        mushroomAdapterProxy: enoki.mushroomAdapterProxy.address,
     
         bannedContractLogic: enoki.bannedContractLogic.address,
         bannedContractProxy: enoki.bannedContractProxy.address,
@@ -58,7 +58,8 @@ export function exportEnokiSystem(enoki: EnokiSystem) {
             assetName: pool.assetName,
             assetAddress: pool.assetAddress,
             sporePool: pool.sporePool.address,
-            mushroomFactory: pool.mushroomFactory.address
+            mushroomFactory: pool.mushroomFactory.address,
+            rateVote: pool.rateVote.address
         })
     }
 

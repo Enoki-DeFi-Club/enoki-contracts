@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /* 
     - Stake up to X mushrooms per user (dao can change)
     - Reward mushroom yield rate for lifespan
@@ -16,7 +18,7 @@ import "./TokenPool.sol";
 import "./Defensible.sol";
 import "./MushroomNFT.sol";
 import "./MushroomLib.sol";
-import "./metadata/MushroomMetadata.sol";
+import "./metadata/MetadataResolver.sol";
 
 /**
  * @title Enoki Geyser
@@ -49,13 +51,13 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
     event TokensUnlocked(uint256 amount, uint256 total);
 
     event MaxStakesPerAddressSet(uint256 maxStakesPerAddress);
-    event MushroomMetadataSet(address mushroomMetadata);
+    event MushroomMetadataSet(address metadataResolver);
     event AdminTransferred(address newAdmin);
 
     TokenPool public _unlockedPool;
     TokenPool public _lockedPool;
 
-    MushroomMetadata public mushroomMetadata;
+    MetadataResolver public metadataResolver;
 
     //
     // Time-bonus params
@@ -191,7 +193,7 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
 
     // TODO: Add a method for per-index staking access when we add new staking pools
     function isNftStakeable(address nftContract) public view returns (bool) {
-        return mushroomMetadata.hasMetadataResolver(nftContract);
+        return metadataResolver.hasMetadataAdapter(nftContract);
     }
 
     modifier onlyAdmin() {
@@ -208,8 +210,8 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
     }
 
     function setMushroomMetadata(address mushroomMetadata_) public onlyAdmin {
-        mushroomMetadata = MushroomMetadata(mushroomMetadata_);
-        emit MushroomMetadataSet(address(mushroomMetadata));
+        metadataResolver = MetadataResolver(mushroomMetadata_);
+        emit MushroomMetadataSet(address(metadataResolver));
     }
 
     function transferAdmin(address newAdmin_) public onlyAdmin {
@@ -278,7 +280,7 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
 
         // Shares is determined by NFT mushroom rate
 
-        MushroomLib.MushroomData memory metadata = mushroomMetadata.getMushroomData(nftContract, nftIndex, "");
+        MushroomLib.MushroomData memory metadata = metadataResolver.getMushroomData(nftContract, nftIndex, "");
 
         uint256 mintedStakingShares = (totalStakingShares > 0)
             ? totalStakingShares.mul(metadata.strength).div(totalStaked())
@@ -360,7 +362,7 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
         for (uint256 i = 0; i < stakes.length; i++) {
             Stake storage lastStake = accountStakes[i];
 
-            MushroomLib.MushroomData memory metadata = mushroomMetadata.getMushroomData(lastStake.nftContract, lastStake.nftIndex, "");
+            MushroomLib.MushroomData memory metadata = metadataResolver.getMushroomData(lastStake.nftContract, lastStake.nftIndex, "");
             uint256 lifespanUsed = now.sub(lastStake.timestampSec);
 
             // fully redeem a past stake
@@ -378,11 +380,11 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
             totalStrengthStaked = totalStrengthStaked.sub(metadata.strength);
 
             // Burn dead mushrooms, if they can be burnt. Otherwise, they can still be withdrawn with 0 lifespan.
-            if (deadMushroom && mushroomMetadata.isBurnable(lastStake.nftContract, lastStake.nftIndex)) {
+            if (deadMushroom && metadataResolver.isBurnable(lastStake.nftContract, lastStake.nftIndex)) {
                 MushroomNFT(lastStake.nftContract).burn(lastStake.nftIndex);
             } else {
                 // If still alive, reduce lifespan of mushroom and return to user. If not burnable, return with 0 lifespan.
-                mushroomMetadata.setMushroomLifespan(lastStake.nftContract, lastStake.nftIndex, metadata.lifespan.sub(lifespanUsed), "");
+                metadataResolver.setMushroomLifespan(lastStake.nftContract, lastStake.nftIndex, metadata.lifespan.sub(lifespanUsed), "");
                 IERC721(lastStake.nftContract).transferFrom(address(this), msg.sender, lastStake.nftIndex);
             }
 

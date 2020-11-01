@@ -2,7 +2,7 @@
 
 pragma solidity ^0.6.0;
 
-interface ISporeToken {
+interface IMiniMe {
     /* ========== STANDARD ERC20 ========== */
     function totalSupply() external view returns (uint256);
 
@@ -23,17 +23,8 @@ interface ISporeToken {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
 
-    /* ========== EXTENSIONS ========== */
+    /* ========== MINIME EXTENSIONS ========== */
 
-    function burn(uint256 amount) external;
-
-    function mint(address to, uint256 amount) external;
-
-    function addInitialLiquidityTransferRights(address account) external;
-
-    function enableTransfers() external;
-
-    function addMinter(address account) external;
-
-    function removeMinter(address account) external;
+    function balanceOfAt(address account, uint256 blockNumber) external view returns (uint256);
+    function totalSupplyAt(uint256 blockNumber) external view returns (uint256);
 }

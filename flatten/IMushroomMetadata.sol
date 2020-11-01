@@ -1,5 +1,7 @@
 // Dependency file: contracts/MushroomLib.sol
 
+// SPDX-License-Identifier: MIT
+
 // pragma solidity ^0.6.0;
 
 library MushroomLib {
@@ -22,6 +24,7 @@ library MushroomLib {
 
 // Root file: contracts/interfaces/IMushroomMetadata.sol
 
+
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
@@ -31,7 +34,7 @@ abstract contract IMushroomMetadata {
     using MushroomLib for MushroomLib.MushroomData;
     using MushroomLib for MushroomLib.MushroomType;
 
-    function hasMetadataResolver(address nftContract) external virtual view returns (bool);
+    function hasMetadataAdapter(address nftContract) external virtual view returns (bool);
 
     function getMushroomData(
         address nftContract,

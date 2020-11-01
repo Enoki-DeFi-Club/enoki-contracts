@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
@@ -8,12 +10,13 @@ import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
 
 import "./MushroomNFT.sol";
 import "./MushroomLib.sol";
-import "./metadata/MushroomMetadata.sol";
 
 /*
     MushroomFactories manage the mushroom generation logic for pools
     Each pool will have it's own factory to generate mushrooms according
     to its' powers.
+
+    The mushroomFactory should be administered by the pool, which grants the ability to grow mushrooms
 */
 contract MushroomFactory is Initializable, OwnableUpgradeSafe {
     using MushroomLib for MushroomLib.MushroomData;
@@ -24,7 +27,6 @@ contract MushroomFactory is Initializable, OwnableUpgradeSafe {
 
     IERC20 public sporeToken;
     MushroomNFT public mushroomNft;
-    MushroomMetadata public mushroomMetadata;
 
     uint256 public costPerMushroom;
     uint256 public mySpecies;
@@ -34,18 +36,16 @@ contract MushroomFactory is Initializable, OwnableUpgradeSafe {
     function initialize(
         IERC20 sporeToken_,
         MushroomNFT mushroomNft_,
+        address sporePool_,
         uint256 costPerMushroom_,
-        uint256 mySpecies_,
-        MushroomMetadata mushroomMetadata_
+        uint256 mySpecies_
     ) public initializer {
         __Ownable_init();
         sporeToken = sporeToken_;
         mushroomNft = mushroomNft_;
         costPerMushroom = costPerMushroom_;
-
         mySpecies = mySpecies_;
-
-        mushroomMetadata = mushroomMetadata_;
+        transferOwnership(sporePool_);
     }
 
     /*

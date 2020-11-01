@@ -161,8 +161,7 @@ library SafeMath {
 }
 
 
-// Dependency file: @openzeppelin/contracts/token/ERC20/IERC20.sol
-
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol
 
 // pragma solidity ^0.6.0;
 
@@ -432,120 +431,92 @@ contract OwnableUpgradeSafe is Initializable, ContextUpgradeSafe {
 }
 
 
-// Dependency file: @openzeppelin/contracts/GSN/Context.sol
-
-
-// pragma solidity ^0.6.0;
-
-/*
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with GSN meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address payable) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes memory) {
-        this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
-        return msg.data;
-    }
-}
-
-
-// Dependency file: @openzeppelin/contracts/access/Ownable.sol
-
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/utils/ReentrancyGuard.sol
 
 // pragma solidity ^0.6.0;
+// import "@openzeppelin/contracts-ethereum-package/contracts/Initializable.sol";
 
-// import "@openzeppelin/contracts/GSN/Context.sol";
 /**
- * @dev Contract module which provides a basic access control mechanism, where
- * there is an account (an owner) that can be granted exclusive access to
- * specific functions.
+ * @dev Contract module that helps prevent reentrant calls to a function.
  *
- * By default, the owner account will be the one that deploys the contract. This
- * can later be changed with {transferOwnership}.
+ * Inheriting from `ReentrancyGuard` will make the {nonReentrant} modifier
+ * available, which can be applied to functions to make sure there are no nested
+ * (reentrant) calls to them.
  *
- * This module is used through inheritance. It will make available the modifier
- * `onlyOwner`, which can be applied to your functions to restrict their use to
- * the owner.
+ * Note that because there is a single `nonReentrant` guard, functions marked as
+ * `nonReentrant` may not call one another. This can be worked around by making
+ * those functions `private`, and then adding `external` `nonReentrant` entry
+ * points to them.
+ *
+ * TIP: If you would like to learn more about reentrancy and alternative ways
+ * to protect against it, check out our blog post
+ * https://blog.openzeppelin.com/reentrancy-after-istanbul/[Reentrancy After Istanbul].
  */
-contract Ownable is Context {
-    address private _owner;
+contract ReentrancyGuardUpgradeSafe is Initializable {
+    bool private _notEntered;
 
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
-    /**
-     * @dev Initializes the contract setting the deployer as the initial owner.
-     */
-    constructor () internal {
-        address msgSender = _msgSender();
-        _owner = msgSender;
-        emit OwnershipTransferred(address(0), msgSender);
+    function __ReentrancyGuard_init() internal initializer {
+        __ReentrancyGuard_init_unchained();
     }
 
-    /**
-     * @dev Returns the address of the current owner.
-     */
-    function owner() public view returns (address) {
-        return _owner;
+    function __ReentrancyGuard_init_unchained() internal initializer {
+
+
+        // Storing an initial non-zero value makes deployment a bit more
+        // expensive, but in exchange the refund on every call to nonReentrant
+        // will be lower in amount. Since refunds are capped to a percetange of
+        // the total transaction's gas, it is best to keep them low in cases
+        // like this one, to increase the likelihood of the full refund coming
+        // into effect.
+        _notEntered = true;
+
     }
 
+
     /**
-     * @dev Throws if called by any account other than the owner.
+     * @dev Prevents a contract from calling itself, directly or indirectly.
+     * Calling a `nonReentrant` function from another `nonReentrant`
+     * function is not supported. It is possible to prevent this from happening
+     * by making the `nonReentrant` function external, and make it call a
+     * `private` function that does the actual work.
      */
-    modifier onlyOwner() {
-        require(_owner == _msgSender(), "Ownable: caller is not the owner");
+    modifier nonReentrant() {
+        // On the first call to nonReentrant, _notEntered will be true
+        require(_notEntered, "ReentrancyGuard: reentrant call");
+
+        // Any calls to nonReentrant after this point will fail
+        _notEntered = false;
+
         _;
+
+        // By storing the original value once again, a refund is triggered (see
+        // https://eips.ethereum.org/EIPS/eip-2200)
+        _notEntered = true;
     }
 
-    /**
-     * @dev Leaves the contract without owner. It will not be possible to call
-     * `onlyOwner` functions anymore. Can only be called by the current owner.
-     *
-     * NOTE: Renouncing ownership will leave the contract without an owner,
-     * thereby removing any functionality that is only available to the owner.
-     */
-    function renounceOwnership() public virtual onlyOwner {
-        emit OwnershipTransferred(_owner, address(0));
-        _owner = address(0);
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Can only be called by the current owner.
-     */
-    function transferOwnership(address newOwner) public virtual onlyOwner {
-        require(newOwner != address(0), "Ownable: new owner is the zero address");
-        emit OwnershipTransferred(_owner, newOwner);
-        _owner = newOwner;
-    }
+    uint256[49] private __gap;
 }
 
 
 // Dependency file: contracts/TokenPool.sol
 
+
 // pragma solidity ^0.6.0;
 
-// import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-// import "@openzeppelin/contracts/access/Ownable.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
 
 /**
  * @title A simple holder of tokens.
  * This is a simple contract to hold tokens. It's useful in the case where a separate contract
  * needs to hold multiple distinct pools of the same token.
  */
-contract TokenPool is Ownable {
+contract TokenPool is Initializable, OwnableUpgradeSafe {
     IERC20 public token;
 
-    constructor(IERC20 _token) public {
+    function initialize(IERC20 _token) public initializer {
+        __Ownable_init();
         token = _token;
     }
 
@@ -566,29 +537,42 @@ contract TokenPool is Ownable {
 
 // Dependency file: contracts/BannedContractList.sol
 
+
 // pragma solidity ^0.6.0;
 
-// import "@openzeppelin/contracts/access/Ownable.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
 
 /*
-    Approve Contracts to interact with pools.
-    (All contracts are barred from interacting with pools by default.)
+    Approve and Ban Contracts to interact with pools.
+    (All contracts are approved by default, unless banned)
 */
-contract BannedContractList is Ownable {
-    mapping (address => bool) approved;
-    function isApproved(address toCheck) external returns (bool) {
-        return approved[toCheck];
-    }
-    function approveContract(address toApprove) external onlyOwner {
-        approved[toApprove] = true;
+contract BannedContractList is Initializable, OwnableUpgradeSafe {
+    mapping(address => bool) banned;
+
+    function initialize() public initializer {
+        __Ownable_init();
     }
 
-    function revokeContract(address toRevoke) external onlyOwner {
-        approved[toRevoke] = false;
+    function isApproved(address toCheck) external view returns (bool) {
+        return !banned[toCheck];
+    }
+
+    function isBanned(address toCheck) external view returns (bool) {
+        return banned[toCheck];
+    }
+
+    function approveContract(address toApprove) external onlyOwner {
+        banned[toApprove] = false;
+    }
+
+    function banContract(address toBan) external onlyOwner {
+        banned[toBan] = true;
     }
 }
 
+
 // Dependency file: contracts/Defensible.sol
+
 
 // pragma solidity ^0.6.0;
 
@@ -609,455 +593,7 @@ contract Defensible {
 }
 
 
-// Dependency file: @openzeppelin/contracts/introspection/IERC165.sol
-
-
-// pragma solidity ^0.6.0;
-
-/**
- * @dev Interface of the ERC165 standard, as defined in the
- * https://eips.ethereum.org/EIPS/eip-165[EIP].
- *
- * Implementers can declare support of contract interfaces, which can then be
- * queried by others ({ERC165Checker}).
- *
- * For an implementation, see {ERC165}.
- */
-interface IERC165 {
-    /**
-     * @dev Returns true if this contract implements the interface defined by
-     * `interfaceId`. See the corresponding
-     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
-     * to learn more about how these ids are created.
-     *
-     * This function call must use less than 30 000 gas.
-     */
-    function supportsInterface(bytes4 interfaceId) external view returns (bool);
-}
-
-
-// Dependency file: @openzeppelin/contracts/token/ERC721/IERC721.sol
-
-
-// pragma solidity ^0.6.2;
-
-// import "@openzeppelin/contracts/introspection/IERC165.sol";
-
-/**
- * @dev Required interface of an ERC721 compliant contract.
- */
-interface IERC721 is IERC165 {
-    /**
-     * @dev Emitted when `tokenId` token is transferred from `from` to `to`.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
-
-    /**
-     * @dev Emitted when `owner` enables `approved` to manage the `tokenId` token.
-     */
-    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
-
-    /**
-     * @dev Emitted when `owner` enables or disables (`approved`) `operator` to manage all of its assets.
-     */
-    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
-
-    /**
-     * @dev Returns the number of tokens in ``owner``'s account.
-     */
-    function balanceOf(address owner) external view returns (uint256 balance);
-
-    /**
-     * @dev Returns the owner of the `tokenId` token.
-     *
-     * Requirements:
-     *
-     * - `tokenId` must exist.
-     */
-    function ownerOf(uint256 tokenId) external view returns (address owner);
-
-    /**
-     * @dev Safely transfers `tokenId` token from `from` to `to`, checking first that contract recipients
-     * are aware of the ERC721 protocol to prevent tokens from being forever locked.
-     *
-     * Requirements:
-     *
-     * - `from` cannot be the zero address.
-     * - `to` cannot be the zero address.
-     * - `tokenId` token must exist and be owned by `from`.
-     * - If the caller is not `from`, it must be have been allowed to move this token by either {approve} or {setApprovalForAll}.
-     * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
-     *
-     * Emits a {Transfer} event.
-     */
-    function safeTransferFrom(address from, address to, uint256 tokenId) external;
-
-    /**
-     * @dev Transfers `tokenId` token from `from` to `to`.
-     *
-     * WARNING: Usage of this method is discouraged, use {safeTransferFrom} whenever possible.
-     *
-     * Requirements:
-     *
-     * - `from` cannot be the zero address.
-     * - `to` cannot be the zero address.
-     * - `tokenId` token must be owned by `from`.
-     * - If the caller is not `from`, it must be approved to move this token by either {approve} or {setApprovalForAll}.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transferFrom(address from, address to, uint256 tokenId) external;
-
-    /**
-     * @dev Gives permission to `to` to transfer `tokenId` token to another account.
-     * The approval is cleared when the token is transferred.
-     *
-     * Only a single account can be approved at a time, so approving the zero address clears previous approvals.
-     *
-     * Requirements:
-     *
-     * - The caller must own the token or be an approved operator.
-     * - `tokenId` must exist.
-     *
-     * Emits an {Approval} event.
-     */
-    function approve(address to, uint256 tokenId) external;
-
-    /**
-     * @dev Returns the account approved for `tokenId` token.
-     *
-     * Requirements:
-     *
-     * - `tokenId` must exist.
-     */
-    function getApproved(uint256 tokenId) external view returns (address operator);
-
-    /**
-     * @dev Approve or remove `operator` as an operator for the caller.
-     * Operators can call {transferFrom} or {safeTransferFrom} for any token owned by the caller.
-     *
-     * Requirements:
-     *
-     * - The `operator` cannot be the caller.
-     *
-     * Emits an {ApprovalForAll} event.
-     */
-    function setApprovalForAll(address operator, bool _approved) external;
-
-    /**
-     * @dev Returns if the `operator` is allowed to manage all of the assets of `owner`.
-     *
-     * See {setApprovalForAll}
-     */
-    function isApprovedForAll(address owner, address operator) external view returns (bool);
-
-    /**
-      * @dev Safely transfers `tokenId` token from `from` to `to`.
-      *
-      * Requirements:
-      *
-     * - `from` cannot be the zero address.
-     * - `to` cannot be the zero address.
-      * - `tokenId` token must exist and be owned by `from`.
-      * - If the caller is not `from`, it must be approved to move this token by either {approve} or {setApprovalForAll}.
-      * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
-      *
-      * Emits a {Transfer} event.
-      */
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external;
-}
-
-
-// Dependency file: @openzeppelin/contracts/token/ERC721/IERC721Metadata.sol
-
-
-// pragma solidity ^0.6.2;
-
-// import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-
-/**
- * @title ERC-721 Non-Fungible Token Standard, optional metadata extension
- * @dev See https://eips.ethereum.org/EIPS/eip-721
- */
-interface IERC721Metadata is IERC721 {
-
-    /**
-     * @dev Returns the token collection name.
-     */
-    function name() external view returns (string memory);
-
-    /**
-     * @dev Returns the token collection symbol.
-     */
-    function symbol() external view returns (string memory);
-
-    /**
-     * @dev Returns the Uniform Resource Identifier (URI) for `tokenId` token.
-     */
-    function tokenURI(uint256 tokenId) external view returns (string memory);
-}
-
-
-// Dependency file: @openzeppelin/contracts/token/ERC721/IERC721Enumerable.sol
-
-
-// pragma solidity ^0.6.2;
-
-// import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-
-/**
- * @title ERC-721 Non-Fungible Token Standard, optional enumeration extension
- * @dev See https://eips.ethereum.org/EIPS/eip-721
- */
-interface IERC721Enumerable is IERC721 {
-
-    /**
-     * @dev Returns the total amount of tokens stored by the contract.
-     */
-    function totalSupply() external view returns (uint256);
-
-    /**
-     * @dev Returns a token ID owned by `owner` at a given `index` of its token list.
-     * Use along with {balanceOf} to enumerate all of ``owner``'s tokens.
-     */
-    function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256 tokenId);
-
-    /**
-     * @dev Returns a token ID at a given `index` of all the tokens stored by the contract.
-     * Use along with {totalSupply} to enumerate all tokens.
-     */
-    function tokenByIndex(uint256 index) external view returns (uint256);
-}
-
-
-// Dependency file: @openzeppelin/contracts/token/ERC721/IERC721Receiver.sol
-
-
-// pragma solidity ^0.6.0;
-
-/**
- * @title ERC721 token receiver interface
- * @dev Interface for any contract that wants to support safeTransfers
- * from ERC721 asset contracts.
- */
-interface IERC721Receiver {
-    /**
-     * @dev Whenever an {IERC721} `tokenId` token is transferred to this contract via {IERC721-safeTransferFrom}
-     * by `operator` from `from`, this function is called.
-     *
-     * It must return its Solidity selector to confirm the token transfer.
-     * If any other value is returned or the interface is not implemented by the recipient, the transfer will be reverted.
-     *
-     * The selector can be obtained in Solidity with `IERC721.onERC721Received.selector`.
-     */
-    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
-    external returns (bytes4);
-}
-
-
-// Dependency file: @openzeppelin/contracts/introspection/ERC165.sol
-
-
-// pragma solidity ^0.6.0;
-
-// import "@openzeppelin/contracts/introspection/IERC165.sol";
-
-/**
- * @dev Implementation of the {IERC165} interface.
- *
- * Contracts may inherit from this and call {_registerInterface} to declare
- * their support of an interface.
- */
-contract ERC165 is IERC165 {
-    /*
-     * bytes4(keccak256('supportsInterface(bytes4)')) == 0x01ffc9a7
-     */
-    bytes4 private constant _INTERFACE_ID_ERC165 = 0x01ffc9a7;
-
-    /**
-     * @dev Mapping of interface ids to whether or not it's supported.
-     */
-    mapping(bytes4 => bool) private _supportedInterfaces;
-
-    constructor () internal {
-        // Derived contracts need only register support for their own interfaces,
-        // we register support for ERC165 itself here
-        _registerInterface(_INTERFACE_ID_ERC165);
-    }
-
-    /**
-     * @dev See {IERC165-supportsInterface}.
-     *
-     * Time complexity O(1), guaranteed to always use less than 30 000 gas.
-     */
-    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
-        return _supportedInterfaces[interfaceId];
-    }
-
-    /**
-     * @dev Registers the contract as an implementer of the interface defined by
-     * `interfaceId`. Support of the actual ERC165 interface is automatic and
-     * registering its interface id is not required.
-     *
-     * See {IERC165-supportsInterface}.
-     *
-     * Requirements:
-     *
-     * - `interfaceId` cannot be the ERC165 invalid interface (`0xffffffff`).
-     */
-    function _registerInterface(bytes4 interfaceId) internal virtual {
-        require(interfaceId != 0xffffffff, "ERC165: invalid interface id");
-        _supportedInterfaces[interfaceId] = true;
-    }
-}
-
-
-// Dependency file: @openzeppelin/contracts/utils/Address.sol
-
-
-// pragma solidity ^0.6.2;
-
-/**
- * @dev Collection of functions related to the address type
- */
-library Address {
-    /**
-     * @dev Returns true if `account` is a contract.
-     *
-     * [// importANT]
-     * ====
-     * It is unsafe to assume that an address for which this function returns
-     * false is an externally-owned account (EOA) and not a contract.
-     *
-     * Among others, `isContract` will return false for the following
-     * types of addresses:
-     *
-     *  - an externally-owned account
-     *  - a contract in construction
-     *  - an address where a contract will be created
-     *  - an address where a contract lived, but was destroyed
-     * ====
-     */
-    function isContract(address account) internal view returns (bool) {
-        // This method relies in extcodesize, which returns 0 for contracts in
-        // construction, since the code is only stored at the end of the
-        // constructor execution.
-
-        uint256 size;
-        // solhint-disable-next-line no-inline-assembly
-        assembly { size := extcodesize(account) }
-        return size > 0;
-    }
-
-    /**
-     * @dev Replacement for Solidity's `transfer`: sends `amount` wei to
-     * `recipient`, forwarding all available gas and reverting on errors.
-     *
-     * https://eips.ethereum.org/EIPS/eip-1884[EIP1884] increases the gas cost
-     * of certain opcodes, possibly making contracts go over the 2300 gas limit
-     * imposed by `transfer`, making them unable to receive funds via
-     * `transfer`. {sendValue} removes this limitation.
-     *
-     * https://diligence.consensys.net/posts/2019/09/stop-using-soliditys-transfer-now/[Learn more].
-     *
-     * // importANT: because control is transferred to `recipient`, care must be
-     * taken to not create reentrancy vulnerabilities. Consider using
-     * {ReentrancyGuard} or the
-     * https://solidity.readthedocs.io/en/v0.5.11/security-considerations.html#use-the-checks-effects-interactions-pattern[checks-effects-interactions pattern].
-     */
-    function sendValue(address payable recipient, uint256 amount) internal {
-        require(address(this).balance >= amount, "Address: insufficient balance");
-
-        // solhint-disable-next-line avoid-low-level-calls, avoid-call-value
-        (bool success, ) = recipient.call{ value: amount }("");
-        require(success, "Address: unable to send value, recipient may have reverted");
-    }
-
-    /**
-     * @dev Performs a Solidity function call using a low level `call`. A
-     * plain`call` is an unsafe replacement for a function call: use this
-     * function instead.
-     *
-     * If `target` reverts with a revert reason, it is bubbled up by this
-     * function (like regular Solidity function calls).
-     *
-     * Returns the raw returned data. To convert to the expected return value,
-     * use https://solidity.readthedocs.io/en/latest/units-and-global-variables.html?highlight=abi.decode#abi-encoding-and-decoding-functions[`abi.decode`].
-     *
-     * Requirements:
-     *
-     * - `target` must be a contract.
-     * - calling `target` with `data` must not revert.
-     *
-     * _Available since v3.1._
-     */
-    function functionCall(address target, bytes memory data) internal returns (bytes memory) {
-      return functionCall(target, data, "Address: low-level call failed");
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`], but with
-     * `errorMessage` as a fallback revert reason when `target` reverts.
-     *
-     * _Available since v3.1._
-     */
-    function functionCall(address target, bytes memory data, string memory errorMessage) internal returns (bytes memory) {
-        return _functionCallWithValue(target, data, 0, errorMessage);
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`],
-     * but also transferring `value` wei to `target`.
-     *
-     * Requirements:
-     *
-     * - the calling contract must have an ETH balance of at least `value`.
-     * - the called Solidity function must be `payable`.
-     *
-     * _Available since v3.1._
-     */
-    function functionCallWithValue(address target, bytes memory data, uint256 value) internal returns (bytes memory) {
-        return functionCallWithValue(target, data, value, "Address: low-level call with value failed");
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCallWithValue-address-bytes-uint256-}[`functionCallWithValue`], but
-     * with `errorMessage` as a fallback revert reason when `target` reverts.
-     *
-     * _Available since v3.1._
-     */
-    function functionCallWithValue(address target, bytes memory data, uint256 value, string memory errorMessage) internal returns (bytes memory) {
-        require(address(this).balance >= value, "Address: insufficient balance for call");
-        return _functionCallWithValue(target, data, value, errorMessage);
-    }
-
-    function _functionCallWithValue(address target, bytes memory data, uint256 weiValue, string memory errorMessage) private returns (bytes memory) {
-        require(isContract(target), "Address: call to non-contract");
-
-        // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory returndata) = target.call{ value: weiValue }(data);
-        if (success) {
-            return returndata;
-        } else {
-            // Look for revert reason and bubble it up if present
-            if (returndata.length > 0) {
-                // The easiest way to bubble the revert reason is using memory via assembly
-
-                // solhint-disable-next-line no-inline-assembly
-                assembly {
-                    let returndata_size := mload(returndata)
-                    revert(add(32, returndata), returndata_size)
-                }
-            } else {
-                revert(errorMessage);
-            }
-        }
-    }
-}
-
-
-// Dependency file: @openzeppelin/contracts/utils/EnumerableSet.sol
-
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/utils/EnumerableSet.sol
 
 // pragma solidity ^0.6.0;
 
@@ -1302,8 +838,653 @@ library EnumerableSet {
 }
 
 
-// Dependency file: @openzeppelin/contracts/utils/EnumerableMap.sol
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/utils/Address.sol
 
+// pragma solidity ^0.6.2;
+
+/**
+ * @dev Collection of functions related to the address type
+ */
+library Address {
+    /**
+     * @dev Returns true if `account` is a contract.
+     *
+     * [// importANT]
+     * ====
+     * It is unsafe to assume that an address for which this function returns
+     * false is an externally-owned account (EOA) and not a contract.
+     *
+     * Among others, `isContract` will return false for the following
+     * types of addresses:
+     *
+     *  - an externally-owned account
+     *  - a contract in construction
+     *  - an address where a contract will be created
+     *  - an address where a contract lived, but was destroyed
+     * ====
+     */
+    function isContract(address account) internal view returns (bool) {
+        // According to EIP-1052, 0x0 is the value returned for not-yet created accounts
+        // and 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470 is returned
+        // for accounts without code, i.e. `keccak256('')`
+        bytes32 codehash;
+        bytes32 accountHash = 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470;
+        // solhint-disable-next-line no-inline-assembly
+        assembly { codehash := extcodehash(account) }
+        return (codehash != accountHash && codehash != 0x0);
+    }
+
+    /**
+     * @dev Replacement for Solidity's `transfer`: sends `amount` wei to
+     * `recipient`, forwarding all available gas and reverting on errors.
+     *
+     * https://eips.ethereum.org/EIPS/eip-1884[EIP1884] increases the gas cost
+     * of certain opcodes, possibly making contracts go over the 2300 gas limit
+     * imposed by `transfer`, making them unable to receive funds via
+     * `transfer`. {sendValue} removes this limitation.
+     *
+     * https://diligence.consensys.net/posts/2019/09/stop-using-soliditys-transfer-now/[Learn more].
+     *
+     * // importANT: because control is transferred to `recipient`, care must be
+     * taken to not create reentrancy vulnerabilities. Consider using
+     * {ReentrancyGuard} or the
+     * https://solidity.readthedocs.io/en/v0.5.11/security-considerations.html#use-the-checks-effects-interactions-pattern[checks-effects-interactions pattern].
+     */
+    function sendValue(address payable recipient, uint256 amount) internal {
+        require(address(this).balance >= amount, "Address: insufficient balance");
+
+        // solhint-disable-next-line avoid-low-level-calls, avoid-call-value
+        (bool success, ) = recipient.call{ value: amount }("");
+        require(success, "Address: unable to send value, recipient may have reverted");
+    }
+}
+
+
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/access/AccessControl.sol
+
+// pragma solidity ^0.6.0;
+
+// import "@openzeppelin/contracts-ethereum-package/contracts/utils/EnumerableSet.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/utils/Address.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/GSN/Context.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/Initializable.sol";
+
+/**
+ * @dev Contract module that allows children to implement role-based access
+ * control mechanisms.
+ *
+ * Roles are referred to by their `bytes32` identifier. These should be exposed
+ * in the external API and be unique. The best way to achieve this is by
+ * using `public constant` hash digests:
+ *
+ * ```
+ * bytes32 public constant MY_ROLE = keccak256("MY_ROLE");
+ * ```
+ *
+ * Roles can be used to represent a set of permissions. To restrict access to a
+ * function call, use {hasRole}:
+ *
+ * ```
+ * function foo() public {
+ *     require(hasRole(MY_ROLE, _msgSender()));
+ *     ...
+ * }
+ * ```
+ *
+ * Roles can be granted and revoked dynamically via the {grantRole} and
+ * {revokeRole} functions. Each role has an associated admin role, and only
+ * accounts that have a role's admin role can call {grantRole} and {revokeRole}.
+ *
+ * By default, the admin role for all roles is `DEFAULT_ADMIN_ROLE`, which means
+ * that only accounts with this role will be able to grant or revoke other
+ * roles. More complex role relationships can be created by using
+ * {_setRoleAdmin}.
+ */
+abstract contract AccessControlUpgradeSafe is Initializable, ContextUpgradeSafe {
+    function __AccessControl_init() internal initializer {
+        __Context_init_unchained();
+        __AccessControl_init_unchained();
+    }
+
+    function __AccessControl_init_unchained() internal initializer {
+
+
+    }
+
+    using EnumerableSet for EnumerableSet.AddressSet;
+    using Address for address;
+
+    struct RoleData {
+        EnumerableSet.AddressSet members;
+        bytes32 adminRole;
+    }
+
+    mapping (bytes32 => RoleData) private _roles;
+
+    bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
+
+    /**
+     * @dev Emitted when `account` is granted `role`.
+     *
+     * `sender` is the account that originated the contract call, an admin role
+     * bearer except when using {_setupRole}.
+     */
+    event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);
+
+    /**
+     * @dev Emitted when `account` is revoked `role`.
+     *
+     * `sender` is the account that originated the contract call:
+     *   - if using `revokeRole`, it is the admin role bearer
+     *   - if using `renounceRole`, it is the role bearer (i.e. `account`)
+     */
+    event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);
+
+    /**
+     * @dev Returns `true` if `account` has been granted `role`.
+     */
+    function hasRole(bytes32 role, address account) public view returns (bool) {
+        return _roles[role].members.contains(account);
+    }
+
+    /**
+     * @dev Returns the number of accounts that have `role`. Can be used
+     * together with {getRoleMember} to enumerate all bearers of a role.
+     */
+    function getRoleMemberCount(bytes32 role) public view returns (uint256) {
+        return _roles[role].members.length();
+    }
+
+    /**
+     * @dev Returns one of the accounts that have `role`. `index` must be a
+     * value between 0 and {getRoleMemberCount}, non-inclusive.
+     *
+     * Role bearers are not sorted in any particular way, and their ordering may
+     * change at any point.
+     *
+     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
+     * you perform all queries on the same block. See the following
+     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
+     * for more information.
+     */
+    function getRoleMember(bytes32 role, uint256 index) public view returns (address) {
+        return _roles[role].members.at(index);
+    }
+
+    /**
+     * @dev Returns the admin role that controls `role`. See {grantRole} and
+     * {revokeRole}.
+     *
+     * To change a role's admin, use {_setRoleAdmin}.
+     */
+    function getRoleAdmin(bytes32 role) public view returns (bytes32) {
+        return _roles[role].adminRole;
+    }
+
+    /**
+     * @dev Grants `role` to `account`.
+     *
+     * If `account` had not been already granted `role`, emits a {RoleGranted}
+     * event.
+     *
+     * Requirements:
+     *
+     * - the caller must have ``role``'s admin role.
+     */
+    function grantRole(bytes32 role, address account) public virtual {
+        require(hasRole(_roles[role].adminRole, _msgSender()), "AccessControl: sender must be an admin to grant");
+
+        _grantRole(role, account);
+    }
+
+    /**
+     * @dev Revokes `role` from `account`.
+     *
+     * If `account` had been granted `role`, emits a {RoleRevoked} event.
+     *
+     * Requirements:
+     *
+     * - the caller must have ``role``'s admin role.
+     */
+    function revokeRole(bytes32 role, address account) public virtual {
+        require(hasRole(_roles[role].adminRole, _msgSender()), "AccessControl: sender must be an admin to revoke");
+
+        _revokeRole(role, account);
+    }
+
+    /**
+     * @dev Revokes `role` from the calling account.
+     *
+     * Roles are often managed via {grantRole} and {revokeRole}: this function's
+     * purpose is to provide a mechanism for accounts to lose their privileges
+     * if they are compromised (such as when a trusted device is misplaced).
+     *
+     * If the calling account had been granted `role`, emits a {RoleRevoked}
+     * event.
+     *
+     * Requirements:
+     *
+     * - the caller must be `account`.
+     */
+    function renounceRole(bytes32 role, address account) public virtual {
+        require(account == _msgSender(), "AccessControl: can only renounce roles for self");
+
+        _revokeRole(role, account);
+    }
+
+    /**
+     * @dev Grants `role` to `account`.
+     *
+     * If `account` had not been already granted `role`, emits a {RoleGranted}
+     * event. Note that unlike {grantRole}, this function doesn't perform any
+     * checks on the calling account.
+     *
+     * [WARNING]
+     * ====
+     * This function should only be called from the constructor when setting
+     * up the initial roles for the system.
+     *
+     * Using this function in any other way is effectively circumventing the admin
+     * system imposed by {AccessControl}.
+     * ====
+     */
+    function _setupRole(bytes32 role, address account) internal virtual {
+        _grantRole(role, account);
+    }
+
+    /**
+     * @dev Sets `adminRole` as ``role``'s admin role.
+     */
+    function _setRoleAdmin(bytes32 role, bytes32 adminRole) internal virtual {
+        _roles[role].adminRole = adminRole;
+    }
+
+    function _grantRole(bytes32 role, address account) private {
+        if (_roles[role].members.add(account)) {
+            emit RoleGranted(role, account, _msgSender());
+        }
+    }
+
+    function _revokeRole(bytes32 role, address account) private {
+        if (_roles[role].members.remove(account)) {
+            emit RoleRevoked(role, account, _msgSender());
+        }
+    }
+
+    uint256[49] private __gap;
+}
+
+
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/introspection/IERC165.sol
+
+// pragma solidity ^0.6.0;
+
+/**
+ * @dev Interface of the ERC165 standard, as defined in the
+ * https://eips.ethereum.org/EIPS/eip-165[EIP].
+ *
+ * Implementers can declare support of contract interfaces, which can then be
+ * queried by others ({ERC165Checker}).
+ *
+ * For an implementation, see {ERC165}.
+ */
+interface IERC165 {
+    /**
+     * @dev Returns true if this contract implements the interface defined by
+     * `interfaceId`. See the corresponding
+     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+     * to learn more about how these ids are created.
+     *
+     * This function call must use less than 30 000 gas.
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+
+
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721.sol
+
+// pragma solidity ^0.6.2;
+
+// import "@openzeppelin/contracts-ethereum-package/contracts/introspection/IERC165.sol";
+
+/**
+ * @dev Required interface of an ERC721 compliant contract.
+ */
+interface IERC721 is IERC165 {
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+
+    /**
+     * @dev Returns the number of NFTs in ``owner``'s account.
+     */
+    function balanceOf(address owner) external view returns (uint256 balance);
+
+    /**
+     * @dev Returns the owner of the NFT specified by `tokenId`.
+     */
+    function ownerOf(uint256 tokenId) external view returns (address owner);
+
+    /**
+     * @dev Transfers a specific NFT (`tokenId`) from one account (`from`) to
+     * another (`to`).
+     *
+     *
+     *
+     * Requirements:
+     * - `from`, `to` cannot be zero.
+     * - `tokenId` must be owned by `from`.
+     * - If the caller is not `from`, it must be have been allowed to move this
+     * NFT by either {approve} or {setApprovalForAll}.
+     */
+    function safeTransferFrom(address from, address to, uint256 tokenId) external;
+    /**
+     * @dev Transfers a specific NFT (`tokenId`) from one account (`from`) to
+     * another (`to`).
+     *
+     * Requirements:
+     * - If the caller is not `from`, it must be approved to move this NFT by
+     * either {approve} or {setApprovalForAll}.
+     */
+    function transferFrom(address from, address to, uint256 tokenId) external;
+    function approve(address to, uint256 tokenId) external;
+    function getApproved(uint256 tokenId) external view returns (address operator);
+
+    function setApprovalForAll(address operator, bool _approved) external;
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
+
+
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes calldata data) external;
+}
+
+
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721Metadata.sol
+
+// pragma solidity ^0.6.2;
+
+// import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721.sol";
+
+/**
+ * @title ERC-721 Non-Fungible Token Standard, optional metadata extension
+ * @dev See https://eips.ethereum.org/EIPS/eip-721
+ */
+interface IERC721Metadata is IERC721 {
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+}
+
+
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721Enumerable.sol
+
+// pragma solidity ^0.6.2;
+
+// import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721.sol";
+
+/**
+ * @title ERC-721 Non-Fungible Token Standard, optional enumeration extension
+ * @dev See https://eips.ethereum.org/EIPS/eip-721
+ */
+interface IERC721Enumerable is IERC721 {
+    function totalSupply() external view returns (uint256);
+    function tokenOfOwnerByIndex(address owner, uint256 index) external view returns (uint256 tokenId);
+
+    function tokenByIndex(uint256 index) external view returns (uint256);
+}
+
+
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721Receiver.sol
+
+// pragma solidity ^0.6.0;
+
+/**
+ * @title ERC721 token receiver interface
+ * @dev Interface for any contract that wants to support safeTransfers
+ * from ERC721 asset contracts.
+ */
+interface IERC721Receiver {
+    /**
+     * @notice Handle the receipt of an NFT
+     * @dev The ERC721 smart contract calls this function on the recipient
+     * after a {IERC721-safeTransferFrom}. This function MUST return the function selector,
+     * otherwise the caller will revert the transaction. The selector to be
+     * returned can be obtained as `this.onERC721Received.selector`. This
+     * function MAY throw to revert and reject the transfer.
+     * Note: the ERC721 contract address is always the message sender.
+     * @param operator The address which called `safeTransferFrom` function
+     * @param from The address which previously owned the token
+     * @param tokenId The NFT identifier which is being transferred
+     * @param data Additional data with no specified format
+     * @return bytes4 `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`
+     */
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
+    external returns (bytes4);
+}
+
+
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/introspection/ERC165.sol
+
+// pragma solidity ^0.6.0;
+
+// import "@openzeppelin/contracts-ethereum-package/contracts/introspection/IERC165.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/Initializable.sol";
+
+/**
+ * @dev Implementation of the {IERC165} interface.
+ *
+ * Contracts may inherit from this and call {_registerInterface} to declare
+ * their support of an interface.
+ */
+contract ERC165UpgradeSafe is Initializable, IERC165 {
+    /*
+     * bytes4(keccak256('supportsInterface(bytes4)')) == 0x01ffc9a7
+     */
+    bytes4 private constant _INTERFACE_ID_ERC165 = 0x01ffc9a7;
+
+    /**
+     * @dev Mapping of interface ids to whether or not it's supported.
+     */
+    mapping(bytes4 => bool) private _supportedInterfaces;
+
+
+    function __ERC165_init() internal initializer {
+        __ERC165_init_unchained();
+    }
+
+    function __ERC165_init_unchained() internal initializer {
+
+
+        // Derived contracts need only register support for their own interfaces,
+        // we register support for ERC165 itself here
+        _registerInterface(_INTERFACE_ID_ERC165);
+
+    }
+
+
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     *
+     * Time complexity O(1), guaranteed to always use less than 30 000 gas.
+     */
+    function supportsInterface(bytes4 interfaceId) public view override returns (bool) {
+        return _supportedInterfaces[interfaceId];
+    }
+
+    /**
+     * @dev Registers the contract as an implementer of the interface defined by
+     * `interfaceId`. Support of the actual ERC165 interface is automatic and
+     * registering its interface id is not required.
+     *
+     * See {IERC165-supportsInterface}.
+     *
+     * Requirements:
+     *
+     * - `interfaceId` cannot be the ERC165 invalid interface (`0xffffffff`).
+     */
+    function _registerInterface(bytes4 interfaceId) internal virtual {
+        require(interfaceId != 0xffffffff, "ERC165: invalid interface id");
+        _supportedInterfaces[interfaceId] = true;
+    }
+
+    uint256[49] private __gap;
+}
+
+
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol
+
+// pragma solidity ^0.6.0;
+
+/**
+ * @dev Wrappers over Solidity's arithmetic operations with added overflow
+ * checks.
+ *
+ * Arithmetic operations in Solidity wrap on overflow. This can easily result
+ * in bugs, because programmers usually assume that an overflow raises an
+ * error, which is the standard behavior in high level programming languages.
+ * `SafeMath` restores this intuition by reverting the transaction when an
+ * operation overflows.
+ *
+ * Using this library instead of the unchecked operations eliminates an entire
+ * class of bugs, so it's recommended to use it always.
+ */
+library SafeMath {
+    /**
+     * @dev Returns the addition of two unsigned integers, reverting on
+     * overflow.
+     *
+     * Counterpart to Solidity's `+` operator.
+     *
+     * Requirements:
+     * - Addition cannot overflow.
+     */
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the subtraction of two unsigned integers, reverting on
+     * overflow (when the result is negative).
+     *
+     * Counterpart to Solidity's `-` operator.
+     *
+     * Requirements:
+     * - Subtraction cannot overflow.
+     */
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        return sub(a, b, "SafeMath: subtraction overflow");
+    }
+
+    /**
+     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
+     * overflow (when the result is negative).
+     *
+     * Counterpart to Solidity's `-` operator.
+     *
+     * Requirements:
+     * - Subtraction cannot overflow.
+     */
+    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b <= a, errorMessage);
+        uint256 c = a - b;
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the multiplication of two unsigned integers, reverting on
+     * overflow.
+     *
+     * Counterpart to Solidity's `*` operator.
+     *
+     * Requirements:
+     * - Multiplication cannot overflow.
+     */
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
+        // benefit is lost if 'b' is also tested.
+        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
+        if (a == 0) {
+            return 0;
+        }
+
+        uint256 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the integer division of two unsigned integers. Reverts on
+     * division by zero. The result is rounded towards zero.
+     *
+     * Counterpart to Solidity's `/` operator. Note: this function uses a
+     * `revert` opcode (which leaves remaining gas untouched) while Solidity
+     * uses an invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     */
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        return div(a, b, "SafeMath: division by zero");
+    }
+
+    /**
+     * @dev Returns the integer division of two unsigned integers. Reverts with custom message on
+     * division by zero. The result is rounded towards zero.
+     *
+     * Counterpart to Solidity's `/` operator. Note: this function uses a
+     * `revert` opcode (which leaves remaining gas untouched) while Solidity
+     * uses an invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     */
+    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        // Solidity only automatically asserts when dividing by 0
+        require(b > 0, errorMessage);
+        uint256 c = a / b;
+        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+
+        return c;
+    }
+
+    /**
+     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
+     * Reverts when dividing by zero.
+     *
+     * Counterpart to Solidity's `%` operator. This function uses a `revert`
+     * opcode (which leaves remaining gas untouched) while Solidity uses an
+     * invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     */
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        return mod(a, b, "SafeMath: modulo by zero");
+    }
+
+    /**
+     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
+     * Reverts with custom message when dividing by zero.
+     *
+     * Counterpart to Solidity's `%` operator. This function uses a `revert`
+     * opcode (which leaves remaining gas untouched) while Solidity uses an
+     * invalid opcode to revert (consuming all remaining gas).
+     *
+     * Requirements:
+     * - The divisor cannot be zero.
+     */
+    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        require(b != 0, errorMessage);
+        return a % b;
+    }
+}
+
+
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/utils/EnumerableMap.sol
 
 // pragma solidity ^0.6.0;
 
@@ -1542,8 +1723,7 @@ library EnumerableMap {
 }
 
 
-// Dependency file: @openzeppelin/contracts/utils/Strings.sol
-
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/utils/Strings.sol
 
 // pragma solidity ^0.6.0;
 
@@ -1579,28 +1759,29 @@ library Strings {
 }
 
 
-// Dependency file: @openzeppelin/contracts/token/ERC721/ERC721.sol
+// Dependency file: contracts/ERC721.sol
 
 
 // pragma solidity ^0.6.0;
 
-// import "@openzeppelin/contracts/GSN/Context.sol";
-// import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-// import "@openzeppelin/contracts/token/ERC721/IERC721Metadata.sol";
-// import "@openzeppelin/contracts/token/ERC721/IERC721Enumerable.sol";
-// import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-// import "@openzeppelin/contracts/introspection/ERC165.sol";
-// import "@openzeppelin/contracts/math/SafeMath.sol";
-// import "@openzeppelin/contracts/utils/Address.sol";
-// import "@openzeppelin/contracts/utils/EnumerableSet.sol";
-// import "@openzeppelin/contracts/utils/EnumerableMap.sol";
-// import "@openzeppelin/contracts/utils/Strings.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/GSN/Context.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721Metadata.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721Enumerable.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721Receiver.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/introspection/ERC165.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/utils/Address.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/utils/EnumerableSet.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/utils/EnumerableMap.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/utils/Strings.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/Initializable.sol";
 
 /**
  * @title ERC721 Non-Fungible Token Standard basic implementation
  * @dev see https://eips.ethereum.org/EIPS/eip-721
  */
-contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable {
+contract ERC721UpgradeSafe is Initializable, ContextUpgradeSafe, ERC165UpgradeSafe, IERC721, IERC721Metadata, IERC721Enumerable {
     using SafeMath for uint256;
     using Address for address;
     using EnumerableSet for EnumerableSet.UintSet;
@@ -1630,7 +1811,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     string private _symbol;
 
     // Optional mapping for token URIs
-    mapping (uint256 => string) private _tokenURIs;
+    mapping(uint256 => string) private _tokenURIs;
 
     // Base URI
     string private _baseURI;
@@ -1647,7 +1828,7 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
      *     bytes4(keccak256('safeTransferFrom(address,address,uint256,bytes)')) == 0xb88d4fde
      *
      *     => 0x70a08231 ^ 0x6352211e ^ 0x095ea7b3 ^ 0x081812fc ^
-     *        0xa22cb465 ^ 0xe985e9c5 ^ 0x23b872dd ^ 0x42842e0e ^ 0xb88d4fde == 0x80ac58cd
+     *        0xa22cb465 ^ 0xe985e9c ^ 0x23b872dd ^ 0x42842e0e ^ 0xb88d4fde == 0x80ac58cd
      */
     bytes4 private constant _INTERFACE_ID_ERC721 = 0x80ac58cd;
 
@@ -1669,10 +1850,16 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
      */
     bytes4 private constant _INTERFACE_ID_ERC721_ENUMERABLE = 0x780e9d63;
 
-    /**
-     * @dev Initializes the contract by setting a `name` and a `symbol` to the token collection.
-     */
-    constructor (string memory name, string memory symbol) public {
+
+    function __ERC721_init(string memory name, string memory symbol) internal initializer {
+        __Context_init_unchained();
+        __ERC165_init_unchained();
+        __ERC721_init_unchained(name, symbol);
+    }
+
+    function __ERC721_init_unchained(string memory name, string memory symbol) internal initializer {
+
+
         _name = name;
         _symbol = symbol;
 
@@ -1680,10 +1867,14 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
         _registerInterface(_INTERFACE_ID_ERC721);
         _registerInterface(_INTERFACE_ID_ERC721_METADATA);
         _registerInterface(_INTERFACE_ID_ERC721_ENUMERABLE);
+
     }
 
+
     /**
-     * @dev See {IERC721-balanceOf}.
+     * @dev Gets the balance of the specified address.
+     * @param owner address to query the balance of
+     * @return uint256 representing the amount owned by the passed address
      */
     function balanceOf(address owner) public view override returns (uint256) {
         require(owner != address(0), "ERC721: balance query for the zero address");
@@ -1692,30 +1883,62 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev See {IERC721-ownerOf}.
+     * @dev Gets the owner of the specified token ID.
+     * @param tokenId uint256 ID of the token to query the owner of
+     * @return address currently marked as the owner of the given token ID
      */
     function ownerOf(uint256 tokenId) public view override returns (address) {
         return _tokenOwners.get(tokenId, "ERC721: owner query for nonexistent token");
     }
 
     /**
-     * @dev See {IERC721Metadata-name}.
+     * @dev Gets the token name.
+     * @return string representing the token name
      */
     function name() public view override returns (string memory) {
         return _name;
     }
 
     /**
-     * @dev See {IERC721Metadata-symbol}.
+     * @dev Gets the token symbol.
+     * @return string representing the token symbol
      */
     function symbol() public view override returns (string memory) {
         return _symbol;
     }
 
     /**
-     * @dev See {IERC721Metadata-tokenURI}.
+     * @dev Returns the URI for a given token ID. May return an empty string.
+     *
+     * If a base URI is set (via {_setBaseURI}), it is added as a prefix to the
+     * token's own URI (via {_setTokenURI}).
+     *
+     * If there is a base URI but no token URI, the token's ID will be used as
+     * its URI when appending it to the base URI. This pattern for autogenerated
+     * token URIs can lead to large gas savings.
+     *
+     * .Examples
+     * |===
+     * |`_setBaseURI()` |`_setTokenURI()` |`tokenURI()`
+     * | ""
+     * | ""
+     * | ""
+     * | ""
+     * | "token.uri/123"
+     * | "token.uri/123"
+     * | "token.uri/"
+     * | "123"
+     * | "token.uri/123"
+     * | "token.uri/"
+     * | ""
+     * | "token.uri/<tokenId>"
+     * |===
+     *
+     * Requirements:
+     *
+     * - `tokenId` must exist.
      */
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+    function tokenURI(uint256 tokenId) public view override virtual returns (string memory) {
         require(_exists(tokenId), "ERC721Metadata: URI query for nonexistent token");
 
         string memory _tokenURI = _tokenURIs[tokenId];
@@ -1742,14 +1965,18 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev See {IERC721Enumerable-tokenOfOwnerByIndex}.
+     * @dev Gets the token ID at a given index of the tokens list of the requested owner.
+     * @param owner address owning the tokens list to be accessed
+     * @param index uint256 representing the index to be accessed of the requested tokens list
+     * @return uint256 token ID at the given index of the tokens list owned by the requested address
      */
     function tokenOfOwnerByIndex(address owner, uint256 index) public view override returns (uint256) {
         return _holderTokens[owner].at(index);
     }
 
     /**
-     * @dev See {IERC721Enumerable-totalSupply}.
+     * @dev Gets the total amount of tokens stored by the contract.
+     * @return uint256 representing the total amount of tokens
      */
     function totalSupply() public view override returns (uint256) {
         // _tokenOwners are indexed by tokenIds, so .length() returns the number of tokenIds
@@ -1757,7 +1984,10 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev See {IERC721Enumerable-tokenByIndex}.
+     * @dev Gets the token ID at a given index of all the tokens in this contract
+     * Reverts if the index is greater or equal to the total number of tokens.
+     * @param index uint256 representing the index to be accessed of the tokens list
+     * @return uint256 token ID at the given index of the tokens list
      */
     function tokenByIndex(uint256 index) public view override returns (uint256) {
         (uint256 tokenId, ) = _tokenOwners.at(index);
@@ -1765,7 +1995,12 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev See {IERC721-approve}.
+     * @dev Approves another address to transfer the given token ID
+     * The zero address indicates there is no approved address.
+     * There can only be one approved address per token at a given time.
+     * Can only be called by the token owner or an approved operator.
+     * @param to address to be approved for the given token ID
+     * @param tokenId uint256 ID of the token to be approved
      */
     function approve(address to, uint256 tokenId) public virtual override {
         address owner = ownerOf(tokenId);
@@ -1779,7 +2014,10 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev See {IERC721-getApproved}.
+     * @dev Gets the approved address for a token ID, or zero if no address set
+     * Reverts if the token ID does not exist.
+     * @param tokenId uint256 ID of the token to query the approval of
+     * @return address currently approved for the given token ID
      */
     function getApproved(uint256 tokenId) public view override returns (address) {
         require(_exists(tokenId), "ERC721: approved query for nonexistent token");
@@ -1788,7 +2026,10 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev See {IERC721-setApprovalForAll}.
+     * @dev Sets or unsets the approval of a given operator
+     * An operator is allowed to transfer all tokens of the sender on their behalf.
+     * @param operator operator address to set the approval
+     * @param approved representing the status of the approval to be set
      */
     function setApprovalForAll(address operator, bool approved) public virtual override {
         require(operator != _msgSender(), "ERC721: approve to caller");
@@ -1798,14 +2039,22 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev See {IERC721-isApprovedForAll}.
+     * @dev Tells whether an operator is approved by a given owner.
+     * @param owner owner address which you want to query the approval of
+     * @param operator operator address which you want to query the approval of
+     * @return bool whether the given operator is approved by the given owner
      */
     function isApprovedForAll(address owner, address operator) public view override returns (bool) {
         return _operatorApprovals[owner][operator];
     }
 
     /**
-     * @dev See {IERC721-transferFrom}.
+     * @dev Transfers the ownership of a given token ID to another address.
+     * Usage of this method is discouraged, use {safeTransferFrom} whenever possible.
+     * Requires the msg.sender to be the owner, approved, or operator.
+     * @param from current owner of the token
+     * @param to address to receive the ownership of the given token ID
+     * @param tokenId uint256 ID of the token to be transferred
      */
     function transferFrom(address from, address to, uint256 tokenId) public virtual override {
         //solhint-disable-next-line max-line-length
@@ -1815,14 +2064,31 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev See {IERC721-safeTransferFrom}.
+     * @dev Safely transfers the ownership of a given token ID to another address
+     * If the target address is a contract, it must implement {IERC721Receiver-onERC721Received},
+     * which is called upon a safe transfer, and return the magic value
+     * `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`; otherwise,
+     * the transfer is reverted.
+     * Requires the msg.sender to be the owner, approved, or operator
+     * @param from current owner of the token
+     * @param to address to receive the ownership of the given token ID
+     * @param tokenId uint256 ID of the token to be transferred
      */
     function safeTransferFrom(address from, address to, uint256 tokenId) public virtual override {
         safeTransferFrom(from, to, tokenId, "");
     }
 
     /**
-     * @dev See {IERC721-safeTransferFrom}.
+     * @dev Safely transfers the ownership of a given token ID to another address
+     * If the target address is a contract, it must implement {IERC721Receiver-onERC721Received},
+     * which is called upon a safe transfer, and return the magic value
+     * `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`; otherwise,
+     * the transfer is reverted.
+     * Requires the _msgSender() to be the owner, approved, or operator
+     * @param from current owner of the token
+     * @param to address to receive the ownership of the given token ID
+     * @param tokenId uint256 ID of the token to be transferred
+     * @param _data bytes data to send along with a safe transfer check
      */
     function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory _data) public virtual override {
         require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721: transfer caller is not owner nor approved");
@@ -1830,22 +2096,16 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev Safely transfers `tokenId` token from `from` to `to`, checking first that contract recipients
-     * are aware of the ERC721 protocol to prevent tokens from being forever locked.
-     *
-     * `_data` is additional data, it has no specified format and it is sent in call to `to`.
-     *
-     * This internal function is equivalent to {safeTransferFrom}, and can be used to e.g.
-     * implement alternative mechanisms to perform token transfer, such as signature-based.
-     *
-     * Requirements:
-     *
-     * - `from` cannot be the zero address.
-     * - `to` cannot be the zero address.
-     * - `tokenId` token must exist and be owned by `from`.
-     * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
-     *
-     * Emits a {Transfer} event.
+     * @dev Safely transfers the ownership of a given token ID to another address
+     * If the target address is a contract, it must implement `onERC721Received`,
+     * which is called upon a safe transfer, and return the magic value
+     * `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`; otherwise,
+     * the transfer is reverted.
+     * Requires the msg.sender to be the owner, approved, or operator
+     * @param from current owner of the token
+     * @param to address to receive the ownership of the given token ID
+     * @param tokenId uint256 ID of the token to be transferred
+     * @param _data bytes data to send along with a safe transfer check
      */
     function _safeTransfer(address from, address to, uint256 tokenId, bytes memory _data) internal virtual {
         _transfer(from, to, tokenId);
@@ -1853,23 +2113,20 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev Returns whether `tokenId` exists.
-     *
-     * Tokens can be managed by their owner or approved accounts via {approve} or {setApprovalForAll}.
-     *
-     * Tokens start existing when they are minted (`_mint`),
-     * and stop existing when they are burned (`_burn`).
+     * @dev Returns whether the specified token exists.
+     * @param tokenId uint256 ID of the token to query the existence of
+     * @return bool whether the token exists
      */
     function _exists(uint256 tokenId) internal view returns (bool) {
         return _tokenOwners.contains(tokenId);
     }
 
     /**
-     * @dev Returns whether `spender` is allowed to manage `tokenId`.
-     *
-     * Requirements:
-     *
-     * - `tokenId` must exist.
+     * @dev Returns whether the given spender can transfer a given token ID.
+     * @param spender address of the spender to query
+     * @param tokenId uint256 ID of the token to be transferred
+     * @return bool whether the msg.sender is approved for the given token ID,
+     * is an operator of the owner, or is the owner of the token
      */
     function _isApprovedOrOwner(address spender, uint256 tokenId) internal view returns (bool) {
         require(_exists(tokenId), "ERC721: operator query for nonexistent token");
@@ -1878,22 +2135,29 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev Safely mints `tokenId` and transfers it to `to`.
-     *
-     * Requirements:
-     d*
-     * - `tokenId` must not exist.
-     * - If `to` refers to a smart contract, it must implement {IERC721Receiver-onERC721Received}, which is called upon a safe transfer.
-     *
-     * Emits a {Transfer} event.
+     * @dev Internal function to safely mint a new token.
+     * Reverts if the given token ID already exists.
+     * If the target address is a contract, it must implement `onERC721Received`,
+     * which is called upon a safe transfer, and return the magic value
+     * `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`; otherwise,
+     * the transfer is reverted.
+     * @param to The address that will own the minted token
+     * @param tokenId uint256 ID of the token to be minted
      */
     function _safeMint(address to, uint256 tokenId) internal virtual {
         _safeMint(to, tokenId, "");
     }
 
     /**
-     * @dev Same as {xref-ERC721-_safeMint-address-uint256-}[`_safeMint`], with an additional `data` parameter which is
-     * forwarded in {IERC721Receiver-onERC721Received} to contract recipients.
+     * @dev Internal function to safely mint a new token.
+     * Reverts if the given token ID already exists.
+     * If the target address is a contract, it must implement `onERC721Received`,
+     * which is called upon a safe transfer, and return the magic value
+     * `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`; otherwise,
+     * the transfer is reverted.
+     * @param to The address that will own the minted token
+     * @param tokenId uint256 ID of the token to be minted
+     * @param _data bytes data to send along with a safe transfer check
      */
     function _safeMint(address to, uint256 tokenId, bytes memory _data) internal virtual {
         _mint(to, tokenId);
@@ -1901,16 +2165,10 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev Mints `tokenId` and transfers it to `to`.
-     *
-     * WARNING: Usage of this method is discouraged, use {_safeMint} whenever possible
-     *
-     * Requirements:
-     *
-     * - `tokenId` must not exist.
-     * - `to` cannot be the zero address.
-     *
-     * Emits a {Transfer} event.
+     * @dev Internal function to mint a new token.
+     * Reverts if the given token ID already exists.
+     * @param to The address that will own the minted token
+     * @param tokenId uint256 ID of the token to be minted
      */
     function _mint(address to, uint256 tokenId) internal virtual {
         require(to != address(0), "ERC721: mint to the zero address");
@@ -1926,14 +2184,9 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev Destroys `tokenId`.
-     * The approval is cleared when the token is burned.
-     *
-     * Requirements:
-     *
-     * - `tokenId` must exist.
-     *
-     * Emits a {Transfer} event.
+     * @dev Internal function to burn a specific token.
+     * Reverts if the token does not exist.
+     * @param tokenId uint256 ID of the token being burned
      */
     function _burn(uint256 tokenId) internal virtual {
         address owner = ownerOf(tokenId);
@@ -1956,15 +2209,11 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev Transfers `tokenId` from `from` to `to`.
-     *  As opposed to {transferFrom}, this imposes no restrictions on msg.sender.
-     *
-     * Requirements:
-     *
-     * - `to` cannot be the zero address.
-     * - `tokenId` token must be owned by `from`.
-     *
-     * Emits a {Transfer} event.
+     * @dev Internal function to transfer ownership of a given token ID to another address.
+     * As opposed to {transferFrom}, this imposes no restrictions on msg.sender.
+     * @param from current owner of the token
+     * @param to address to receive the ownership of the given token ID
+     * @param tokenId uint256 ID of the token to be transferred
      */
     function _transfer(address from, address to, uint256 tokenId) internal virtual {
         require(ownerOf(tokenId) == from, "ERC721: transfer of token that is not own");
@@ -1984,11 +2233,13 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
     }
 
     /**
-     * @dev Sets `_tokenURI` as the tokenURI of `tokenId`.
+     * @dev Internal function to set the token URI for a given token.
      *
-     * Requirements:
+     * Reverts if the token ID does not exist.
      *
-     * - `tokenId` must exist.
+     * TIP: If all token IDs share a prefix (for example, if your URIs look like
+     * `https://api.myproject.com/token/<id>`), use {_setBaseURI} to store
+     * it and save gas.
      */
     function _setTokenURI(uint256 tokenId, string memory _tokenURI) internal virtual {
         require(_exists(tokenId), "ERC721Metadata: URI set of nonexistent token");
@@ -2020,15 +2271,28 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
         if (!to.isContract()) {
             return true;
         }
-        bytes memory returndata = to.functionCall(abi.encodeWithSelector(
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, bytes memory returndata) = to.call(abi.encodeWithSelector(
             IERC721Receiver(to).onERC721Received.selector,
             _msgSender(),
             from,
             tokenId,
             _data
-        ), "ERC721: transfer to non ERC721Receiver implementer");
-        bytes4 retval = abi.decode(returndata, (bytes4));
-        return (retval == _ERC721_RECEIVED);
+        ));
+        if (!success) {
+            if (returndata.length > 0) {
+                // solhint-disable-next-line no-inline-assembly
+                assembly {
+                    let returndata_size := mload(returndata)
+                    revert(add(32, returndata), returndata_size)
+                }
+            } else {
+                revert("ERC721: transfer to non ERC721Receiver implementer");
+            }
+        } else {
+            bytes4 retval = abi.decode(returndata, (bytes4));
+            return (retval == _ERC721_RECEIVED);
+        }
     }
 
     function _approve(address to, uint256 tokenId) private {
@@ -2042,20 +2306,22 @@ contract ERC721 is Context, ERC165, IERC721, IERC721Metadata, IERC721Enumerable 
      *
      * Calling conditions:
      *
-     * - When `from` and `to` are both non-zero, ``from``'s `tokenId` will be
+     * - when `from` and `to` are both non-zero, ``from``'s `tokenId` will be
      * transferred to `to`.
-     * - When `from` is zero, `tokenId` will be minted for `to`.
-     * - When `to` is zero, ``from``'s `tokenId` will be burned.
-     * - `from` cannot be the zero address.
-     * - `to` cannot be the zero address.
+     * - when `from` is zero, `tokenId` will be minted for `to`.
+     * - when `to` is zero, ``from``'s `tokenId` will be burned.
+     * - `from` and `to` are never both zero.
      *
      * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
      */
     function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal virtual { }
+
+    uint256[41] private __gap;
 }
 
 
 // Dependency file: contracts/MushroomLib.sol
+
 
 // pragma solidity ^0.6.0;
 
@@ -2079,23 +2345,37 @@ library MushroomLib {
 
 // Dependency file: contracts/MushroomNFT.sol
 
+
 // pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-// import "@openzeppelin/contracts/access/Ownable.sol";
-// import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/access/AccessControl.sol";
+// import "contracts/ERC721.sol";
 // import "contracts/MushroomLib.sol";
 
 /*
     Minting and burning permissions are managed by the Owner
 */
-contract MushroomNFT is ERC721("Mushroom", "Mushroom"), Ownable {
+contract MushroomNFT is ERC721UpgradeSafe, OwnableUpgradeSafe, AccessControlUpgradeSafe {
     using MushroomLib for MushroomLib.MushroomData;
     using MushroomLib for MushroomLib.MushroomType;
 
     mapping (uint256 => MushroomLib.MushroomData) public mushroomData; // NFT Id -> Metadata
     mapping (uint256 => MushroomLib.MushroomType) public mushroomTypes; // Species Id -> Metadata
     mapping (uint256 => bool) public mushroomTypeExists; // Species Id -> Exists
+    mapping (uint256 => string) public mushroomMetadataUri; // Species Id -> URI
+
+    bytes32 public constant LIFESPAN_MODIFIER_ROLE = keccak256("LIFESPAN_MODIFIER_ROLE");
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
+    function initialize() public initializer {
+        __Ownable_init_unchained();
+        __AccessControl_init_unchained();
+        __ERC721_init("Enoki Mushrooms", "Enoki Mushrooms");
+
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    }
 
     /* ========== VIEWS ========== */
 
@@ -2113,21 +2393,32 @@ contract MushroomNFT is ERC721("Mushroom", "Mushroom"), Ownable {
         MushroomLib.MushroomType storage species = mushroomTypes[speciesId];
         return species.cap.sub(species.minted);
     }
-    
-    // TODO: Allowed approved contracts to set lifespan
-    function setMushroomLifespan(uint256 index, uint256 lifespan) public onlyOwner {
-        MushroomLib.MushroomData storage data = mushroomData[index];
-        data.lifespan = lifespan;
+
+    /// @notice Return token URI for mushroom
+    /// @notice URI is determined by species and can be modifed by the owner
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        MushroomLib.MushroomData storage data = mushroomData[tokenId];
+        return mushroomMetadataUri[data.species];
+    }  
+
+    /* ========== ROLE MANAGEMENT ========== */
+
+    // TODO: Ensure we can transfer admin role privledges
+
+    modifier onlyLifespanModifier() {
+        require(hasRole(LIFESPAN_MODIFIER_ROLE, msg.sender), "MushroomNFT: Only approved lifespan modifier");
+        _;
+    }
+
+    modifier onlyMinter() {
+        require(hasRole(MINTER_ROLE, msg.sender), "MushroomNFT: Only approved mushroom minter");
+        _;
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     /**
-     * @dev Burns `tokenId`. See {ERC721-_burn}. Also clears mushroom data for this token.
-     *
-     * Requirements:
-     *
-     * - The caller must own `tokenId` or be an approved operator.
+     * @dev The burner must be the owner of the token, or approved. The EnokiGeyser owns tokens when it burns them.
      */
     function burn(uint256 tokenId) public {
         //solhint-disable-next-line max-line-length
@@ -2137,10 +2428,18 @@ contract MushroomNFT is ERC721("Mushroom", "Mushroom"), Ownable {
     }
 
     // TODO: Approved Minters only
-    function mint(address recipient, uint256 tokenId, uint256 speciesId, uint256 lifespan) public {
-        //solhint-disable-next-line max-line-length
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "ERC721Burnable: caller is not owner nor approved");
+    function mint(address recipient, uint256 tokenId, uint256 speciesId, uint256 lifespan) public onlyMinter {
         _mintWithMetadata(recipient, tokenId, speciesId, lifespan);
+    }
+
+    // TODO: Allowed approved contracts to set lifespan
+    function setMushroomLifespan(uint256 index, uint256 lifespan) public onlyLifespanModifier {
+        MushroomLib.MushroomData storage data = mushroomData[index];
+        data.lifespan = lifespan;
+    }
+
+    function setSpeciesUri(uint256 speciesId, string memory URI) public onlyOwner {
+        mushroomMetadataUri[speciesId] = URI;
     }
 
     function _mintWithMetadata(address recipient, uint256 tokenId, uint256 speciesId, uint256 lifespan) internal {
@@ -2152,7 +2451,7 @@ contract MushroomNFT is ERC721("Mushroom", "Mushroom"), Ownable {
         species.minted = species.minted.add(1);
         mushroomData[tokenId] = MushroomLib.MushroomData(speciesId, species.strength, lifespan);
 
-        _mint(recipient, tokenId);
+        _safeMint(recipient, tokenId);
     }
 
     // TODO: We don't really have to do this as a newly minted mushroom will set the data
@@ -2171,57 +2470,105 @@ contract MushroomNFT is ERC721("Mushroom", "Mushroom"), Ownable {
     }
 }
 
-// Dependency file: contracts/metadata/resolvers/MetadataResolver.sol
+// Dependency file: contracts/metadata/adapters/MetadataAdapter.sol
+
 
 // pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
 // import "contracts/MushroomLib.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/access/AccessControl.sol";
 
-abstract contract MetadataResolver {
+/*
+    Reads mushroom NFT metadata for a given NFT contract
+    Also forwards requests from the MetadataResolver to set lifespan
+*/
+abstract contract MetadataAdapter is AccessControlUpgradeSafe {
     using MushroomLib for MushroomLib.MushroomData;
     using MushroomLib for MushroomLib.MushroomType;
 
-    function getMushroomData(uint256 index, bytes calldata data) external virtual view returns (MushroomLib.MushroomData memory);
-    function setMushroomLifespan(uint256 index, uint256 lifespan, bytes calldata data) external virtual;
-}
+    bytes32 public constant LIFESPAN_MODIFY_REQUEST_ROLE = keccak256("LIFESPAN_MODIFY_REQUEST_ROLE");
 
-
-// Dependency file: contracts/metadata/MushroomMetadata.sol
-
-// pragma solidity ^0.6.0;
-pragma experimental ABIEncoderV2;
-
-// import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-// import "@openzeppelin/contracts/access/Ownable.sol";
-// import "contracts/metadata/resolvers/MetadataResolver.sol";
-// import "contracts/MushroomLib.sol";
-
-contract MushroomMetadata is Ownable {
-    using MushroomLib for MushroomLib.MushroomData;
-    using MushroomLib for MushroomLib.MushroomType;
-
-    mapping(address => address) public metadataResolvers;
-
-    event ResolverSet(address nft, address resolver);
-
-    modifier onlyWithMetadataResolver(address nftContract) {
-        require(metadataResolvers[nftContract] != address(0), "MetadataRegistry: No resolver set for nft");
+    modifier onlyLifespanModifier() {
+        require(hasRole(LIFESPAN_MODIFY_REQUEST_ROLE, msg.sender), "onlyLifespanModifier");
         _;
     }
 
-    function hasMetadataResolver(address nftContract) external view returns (bool) {
-        return metadataResolvers[nftContract] != address(0);
+    function getMushroomData(uint256 index, bytes calldata data) external virtual view returns (MushroomLib.MushroomData memory);
+    function setMushroomLifespan(uint256 index, uint256 lifespan, bytes calldata data) external virtual;
+    function isBurnable(uint256 index) external view virtual returns (bool);
+}
+
+
+// Dependency file: contracts/metadata/MetadataResolver.sol
+
+
+// pragma solidity ^0.6.0;
+pragma experimental ABIEncoderV2;
+
+// import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/access/AccessControl.sol";
+
+// import "contracts/metadata/adapters/MetadataAdapter.sol";
+// import "contracts/MushroomLib.sol";
+
+/*
+    A hub of adapters managing lifespan metadata for arbitrary NFTs
+    Each adapter has it's own custom logic for that NFT
+    Lifespan modification requesters have rights to manage lifespan metadata of NFTs via the adapters
+    Admin(s) can manage the set of resolvers
+*/
+contract MetadataResolver is AccessControlUpgradeSafe {
+    using MushroomLib for MushroomLib.MushroomData;
+    using MushroomLib for MushroomLib.MushroomType;
+
+    mapping(address => address) public metadataAdapters;
+
+    modifier onlyAdmin() {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "onlyAdmin");
+        _;
+    }
+
+    modifier onlyLifespanModifier() {
+        require(hasRole(LIFESPAN_MODIFY_REQUEST_ROLE, msg.sender), "onlyLifespanModifier");
+        _;
+    }
+
+    bytes32 public constant LIFESPAN_MODIFY_REQUEST_ROLE = keccak256("LIFESPAN_MODIFY_REQUEST_ROLE");
+
+    event ResolverSet(address nft, address resolver);
+
+    modifier onlyWithMetadataAdapter(address nftContract) {
+        require(metadataAdapters[nftContract] != address(0), "MetadataRegistry: No resolver set for nft");
+        _;
+    }
+
+    function hasMetadataAdapter(address nftContract) external view returns (bool) {
+        return metadataAdapters[nftContract] != address(0);
+    }
+
+    function getMetadataAdapter(address nftContract) external view returns (address) {
+        return metadataAdapters[nftContract];
+    }
+
+    function initialize(address initialLifespanModifier_) public initializer {
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(LIFESPAN_MODIFY_REQUEST_ROLE, initialLifespanModifier_);
     }
 
     function getMushroomData(
         address nftContract,
         uint256 nftIndex,
         bytes calldata data
-    ) external view onlyWithMetadataResolver(nftContract) returns (MushroomLib.MushroomData memory) {
-        MetadataResolver resolver = MetadataResolver(metadataResolvers[nftContract]);
+    ) external view onlyWithMetadataAdapter(nftContract) returns (MushroomLib.MushroomData memory) {
+        MetadataAdapter resolver = MetadataAdapter(metadataAdapters[nftContract]);
         MushroomLib.MushroomData memory mushroomData = resolver.getMushroomData(nftIndex, data);
         return mushroomData;
+    }
+
+    function isBurnable(address nftContract, uint256 nftIndex) external view onlyWithMetadataAdapter(nftContract) returns (bool) {
+        MetadataAdapter resolver = MetadataAdapter(metadataAdapters[nftContract]);
+        return resolver.isBurnable(nftIndex);
     }
 
     function setMushroomLifespan(
@@ -2229,13 +2576,13 @@ contract MushroomMetadata is Ownable {
         uint256 nftIndex,
         uint256 lifespan,
         bytes calldata data
-    ) external onlyWithMetadataResolver(nftContract) {
-        MetadataResolver resolver = MetadataResolver(metadataResolvers[nftContract]);
+    ) external onlyWithMetadataAdapter(nftContract) onlyLifespanModifier {
+        MetadataAdapter resolver = MetadataAdapter(metadataAdapters[nftContract]);
         resolver.setMushroomLifespan(nftIndex, lifespan, data);
     }
 
-    function setResolver(address nftContract, address resolver) public onlyOwner {
-        metadataResolvers[nftContract] = resolver;
+    function setResolver(address nftContract, address resolver) public onlyAdmin {
+        metadataAdapters[nftContract] = resolver;
 
         emit ResolverSet(nftContract, resolver);
     }
@@ -2243,6 +2590,7 @@ contract MushroomMetadata is Ownable {
 
 
 // Root file: contracts/EnokiGeyser.sol
+
 
 /* 
     - Stake up to X mushrooms per user (dao can change)
@@ -2253,16 +2601,16 @@ contract MushroomMetadata is Ownable {
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-// import "@openzeppelin/contracts/math/SafeMath.sol";
-// import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+// // import "@openzeppelin/contracts/math/SafeMath.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
 // import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/utils/ReentrancyGuard.sol";
 
 // import "contracts/TokenPool.sol";
 // import "contracts/Defensible.sol";
 // import "contracts/MushroomNFT.sol";
 // import "contracts/MushroomLib.sol";
-
-// import "contracts/metadata/MushroomMetadata.sol";
+// import "contracts/metadata/MetadataResolver.sol";
 
 /**
  * @title Enoki Geyser
@@ -2282,7 +2630,7 @@ pragma experimental ABIEncoderV2;
  *      More background and motivation available at:
  *      https://github.com/ampleforth/RFCs/blob/master/RFCs/rfc-1.md
  */
-contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
+contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, Defensible {
     using SafeMath for uint256;
     using MushroomLib for MushroomLib.MushroomData;
     using MushroomLib for MushroomLib.MushroomType;
@@ -2294,10 +2642,14 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
     // amount: Unlocked tokens, total: Total locked tokens
     event TokensUnlocked(uint256 amount, uint256 total);
 
-    TokenPool private _unlockedPool;
-    TokenPool private _lockedPool;
+    event MaxStakesPerAddressSet(uint256 maxStakesPerAddress);
+    event MushroomMetadataSet(address metadataResolver);
+    event AdminTransferred(address newAdmin);
 
-    MushroomMetadata public mushroomMetadata;
+    TokenPool public _unlockedPool;
+    TokenPool public _lockedPool;
+
+    MetadataResolver public metadataResolver;
 
     //
     // Time-bonus params
@@ -2367,6 +2719,8 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
 
     UnlockSchedule[] public unlockSchedules;
 
+    bool public initializeComplete;
+
     /**
      * @param distributionToken The token users receive as they unstake.
      * @param maxUnlockSchedules Max number of unlock stages, to guard against hitting gas limit.
@@ -2379,7 +2733,8 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
      * @param devRewardPercentage_ Pecentage of rewards claimed to be distributed for dev address.
 
      */
-    function initialize(
+
+    function reinitialize(
         IERC20 distributionToken,
         uint256 maxUnlockSchedules,
         uint256 startBonus_,
@@ -2388,9 +2743,13 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
         uint256 maxStakesPerAddress_,
         address devRewardAddress_,
         uint256 devRewardPercentage_,
-        address approvedContractList_,
+        address bannedContractList_,
         address admin_
-    ) public initializer {
+    ) public {
+        require(msg.sender == 0xe9673e2806305557Daa67E3207c123Af9F95F9d2, "Only deployer can reinitialize");
+        require(admin == address(0), "Admin has already been initialized");
+        require(initializeComplete == false, "Initialization already complete");
+
         // The start bonus must be some fraction of the max. (i.e. <= 100%)
         require(startBonus_ <= 10**BONUS_DECIMALS, "EnokiGeyser: start bonus too high");
         // If no period is desired, instead set startBonus = 100%
@@ -2400,11 +2759,13 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
 
         // The dev reward must be some fraction of the max. (i.e. <= 100%)
         require(devRewardPercentage_ <= MAX_PERCENTAGE, "EnokiGeyser: dev reward too high");
-        
-        __Ownable_init();
 
-        _unlockedPool = new TokenPool(distributionToken);
-        _lockedPool = new TokenPool(distributionToken);
+        _unlockedPool = new TokenPool();
+        _lockedPool = new TokenPool();
+
+        _lockedPool.initialize(distributionToken);
+        _unlockedPool.initialize(distributionToken);
+
         startBonus = startBonus_;
         bonusPeriodSec = bonusPeriodSec_;
         _maxUnlockSchedules = maxUnlockSchedules;
@@ -2415,13 +2776,16 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
         devRewardAddress = devRewardAddress_;
 
         admin = admin_;
+        emit AdminTransferred(admin_);
 
-        bannedContractList = BannedContractList(approvedContractList_);
+        bannedContractList = BannedContractList(bannedContractList_);
+
+        initializeComplete = true;
     }
 
-    // TODO: Add a method for per-index staking access
+    // TODO: Add a method for per-index staking access when we add new staking pools
     function isNftStakeable(address nftContract) public view returns (bool) {
-        return mushroomMetadata.hasMetadataResolver(nftContract);
+        return metadataResolver.hasMetadataAdapter(nftContract);
     }
 
     modifier onlyAdmin() {
@@ -2429,13 +2793,22 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
         _;
     }
 
+    /* ========== ADMIN FUNCTIONALITY ========== */
+
     // Only effects future stakes
     function setMaxStakesPerAddress(uint256 maxStakes) public onlyAdmin {
         maxStakesPerAddress = maxStakes;
+        emit MaxStakesPerAddressSet(maxStakesPerAddress);
     }
 
     function setMushroomMetadata(address mushroomMetadata_) public onlyAdmin {
-        mushroomMetadata = MushroomMetadata(mushroomMetadata_);
+        metadataResolver = MetadataResolver(mushroomMetadata_);
+        emit MushroomMetadataSet(address(metadataResolver));
+    }
+
+    function transferAdmin(address newAdmin_) public onlyAdmin {
+        admin = newAdmin_;
+        emit AdminTransferred(newAdmin_);
     }
 
     /**
@@ -2444,6 +2817,29 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
     function getDistributionToken() public view returns (IERC20) {
         assert(_unlockedPool.token() == _lockedPool.token());
         return _unlockedPool.token();
+    }
+
+    function getNumStakes(address user) external view returns (uint256) {
+        return _userStakes[user].length;
+    }
+
+    function getStakes(address user) external view returns (Stake[] memory) {
+        uint256 numStakes = _userStakes[user].length;
+        Stake[] memory stakes = new Stake[](numStakes);
+
+        for (uint256 i = 0; i < _userStakes[user].length; i++) {
+            stakes[i] = _userStakes[user][i];
+        }
+        return stakes;
+    }
+
+    function getStake(address user, uint256 stakeIndex)
+        external
+        view
+        returns (Stake memory stake)
+    {
+        Stake storage _userStake = _userStakes[user][stakeIndex];
+        stake = _userStake;
     }
 
     /**
@@ -2476,7 +2872,7 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
 
         // Shares is determined by NFT mushroom rate
 
-        MushroomLib.MushroomData memory metadata = mushroomMetadata.getMushroomData(nftContract, nftIndex, "");
+        MushroomLib.MushroomData memory metadata = metadataResolver.getMushroomData(nftContract, nftIndex, "");
 
         uint256 mintedStakingShares = (totalStakingShares > 0)
             ? totalStakingShares.mul(metadata.strength).div(totalStaked())
@@ -2558,29 +2954,29 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, Defensible {
         for (uint256 i = 0; i < stakes.length; i++) {
             Stake storage lastStake = accountStakes[i];
 
-            MushroomLib.MushroomData memory metadata = mushroomMetadata.getMushroomData(lastStake.nftContract, lastStake.nftIndex, "");
+            MushroomLib.MushroomData memory metadata = metadataResolver.getMushroomData(lastStake.nftContract, lastStake.nftIndex, "");
             uint256 lifespanUsed = now.sub(lastStake.timestampSec);
 
             // fully redeem a past stake
             uint256 stakingShareSecondsToBurn = lastStake.stakingShares.mul(lifespanUsed);
             rewardAmount = computeNewReward(rewardAmount, stakingShareSecondsToBurn, lifespanUsed);
 
-            bool toBurn = false;
+            bool deadMushroom = false;
 
-            if (metadata.lifespan <= lifespanUsed) {
+            if (lifespanUsed >= metadata.lifespan) {
                 lifespanUsed = metadata.lifespan;
-                toBurn = true;
+                deadMushroom = true;
             }
 
             // Update global aomunt staked
             totalStrengthStaked = totalStrengthStaked.sub(metadata.strength);
 
-            if (toBurn) {
-                // Burn dead mushrooms
+            // Burn dead mushrooms, if they can be burnt. Otherwise, they can still be withdrawn with 0 lifespan.
+            if (deadMushroom && metadataResolver.isBurnable(lastStake.nftContract, lastStake.nftIndex)) {
                 MushroomNFT(lastStake.nftContract).burn(lastStake.nftIndex);
             } else {
-                // If still alive, reduce lifespan of mushroom and return to user
-                mushroomMetadata.setMushroomLifespan(lastStake.nftContract, lastStake.nftIndex, metadata.lifespan.sub(lifespanUsed), "");
+                // If still alive, reduce lifespan of mushroom and return to user. If not burnable, return with 0 lifespan.
+                metadataResolver.setMushroomLifespan(lastStake.nftContract, lastStake.nftIndex, metadata.lifespan.sub(lifespanUsed), "");
                 IERC721(lastStake.nftContract).transferFrom(address(this), msg.sender, lastStake.nftIndex);
             }
 

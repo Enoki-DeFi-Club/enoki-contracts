@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
@@ -19,7 +21,7 @@ contract MushroomNFT is ERC721UpgradeSafe, OwnableUpgradeSafe, AccessControlUpgr
     mapping (uint256 => string) public mushroomMetadataUri; // Species Id -> URI
 
     bytes32 public constant LIFESPAN_MODIFIER_ROLE = keccak256("LIFESPAN_MODIFIER_ROLE");
-        bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     function initialize() public initializer {
         __Ownable_init_unchained();
@@ -103,7 +105,7 @@ contract MushroomNFT is ERC721UpgradeSafe, OwnableUpgradeSafe, AccessControlUpgr
         species.minted = species.minted.add(1);
         mushroomData[tokenId] = MushroomLib.MushroomData(speciesId, species.strength, lifespan);
 
-        _mint(recipient, tokenId);
+        _safeMint(recipient, tokenId);
     }
 
     // TODO: We don't really have to do this as a newly minted mushroom will set the data

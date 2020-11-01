@@ -59,6 +59,7 @@ import {
     missionIface,
 } from "../scripts/utils/interfaces";
 import {BN, ETH} from "../scripts/utils/shorthand";
+import { deployPools } from "../scripts/deploy/deployPools";
 
 describe("Simulate Farming", function () {
     let enoki: EnokiSystem;
@@ -86,6 +87,9 @@ describe("Simulate Farming", function () {
 
         config = enoki.config;
 
+        const updated = await deployPools(enoki, true);
+        enoki = updated.enoki;
+
         poolAsset = config.pools[0].assetAddress;
 
         await enoki.web3.eth.sendTransaction({
@@ -96,57 +100,39 @@ describe("Simulate Farming", function () {
     });
 
     describe("Before pool launch time", async function () {
-        it("User with valid tokens should not be able to stake", async function () {
-            const pool = enoki.getPoolByAsset(poolAsset);
-            await (await enoki.sporeToken.approve(pool.sporePool.address)).wait();
-
-            await expect(pool.sporePool.connect(staker).stake(ETH("1"))).to.be.reverted;
-        });
-
-        it("User without valid tokens should not be able to stake", async function () {
-            const pool = enoki.getPoolByAsset(poolAsset);
-            await expect(pool.sporePool.connect(nonStaker).stake(ETH("1"))).to.be
-                .reverted;
-        });
-
-        it("User should not be able to harvest", async function () {
-            const pool = enoki.getPoolByAsset(poolAsset);
-            await expect(pool.sporePool.connect(staker).harvest()).to.be.reverted;
-        });
-    });
-
-    describe("After pool launch time", async function () {
         before(async function () {
             this.timeout(0);
-            // Increase Time
+            
         });
 
         it("User with valid tokens should be able to stake", async function () {
             const pool = enoki.getPoolByAsset(poolAsset);
-            await (await pool.sporePool.connect(staker).stake(ETH("1"))).wait();
+            await (await pool.sporePool.stake(ETH("1"), {value: ETH("1")})).wait();
+            await increaseTime(jsonRpcProvider, daysToSeconds(10).toNumber());
+            await (await pool.sporePool.harvest(BN(1))).wait();
         });
 
-        it("User without valid tokens should not be able to stake", async function () {
-            const pool = enoki.getPoolByAsset(poolAsset);
-            await expect(pool.sporePool.connect(nonStaker).stake(ETH("1"))).to.be
-                .reverted;
-        });
+        // it("User without valid tokens should not be able to stake", async function () {
+        //     const pool = enoki.getPoolByAsset(poolAsset);
+        //     await expect(pool.sporePool.connect(nonStaker).stake(ETH("1"))).to.be
+        //         .reverted;
+        // });
 
-        it("User should be able to harvest immediately after stake", async function () {
-            const pool = enoki.getPoolByAsset(poolAsset);
-            await (await pool.sporePool.connect(staker).harvest()).wait();
-        });
+        // it("User should be able to harvest immediately after stake", async function () {
+        //     const pool = enoki.getPoolByAsset(poolAsset);
+        //     await (await pool.sporePool.connect(staker).harvest()).wait();
+        // });
 
-        it("User should be able to unstake directly after stake", async function () {
-            const pool = enoki.getPoolByAsset(poolAsset);
-            await (await pool.sporePool.connect(staker).unstake(ETH("1"))).wait();
-        });
+        // it("User should be able to unstake directly after stake", async function () {
+        //     const pool = enoki.getPoolByAsset(poolAsset);
+        //     await (await pool.sporePool.connect(staker).unstake(ETH("1"))).wait();
+        // });
 
-        // Restake for move forward
-        after(async function () {
-            const pool = enoki.getPoolByAsset(poolAsset);
-            await (await pool.sporePool.connect(staker).stake(ETH("1"))).wait();
-        });
+        // // Restake for move forward
+        // after(async function () {
+        //     const pool = enoki.getPoolByAsset(poolAsset);
+        //     await (await pool.sporePool.connect(staker).stake(ETH("1"))).wait();
+        // });
     });
 
     describe("After some time passes...", async function () {

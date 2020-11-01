@@ -1,36 +1,3 @@
-// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/math/Math.sol
-
-// pragma solidity ^0.6.0;
-
-/**
- * @dev Standard math utilities missing in the Solidity language.
- */
-library Math {
-    /**
-     * @dev Returns the largest of two numbers.
-     */
-    function max(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a >= b ? a : b;
-    }
-
-    /**
-     * @dev Returns the smallest of two numbers.
-     */
-    function min(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a < b ? a : b;
-    }
-
-    /**
-     * @dev Returns the average of two numbers. The result is rounded towards
-     * zero.
-     */
-    function average(uint256 a, uint256 b) internal pure returns (uint256) {
-        // (a + b) / 2 can overflow, so we distribute
-        return (a / 2) + (b / 2) + ((a % 2 + b % 2) / 2);
-    }
-}
-
-
 // Dependency file: @openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol
 
 // pragma solidity ^0.6.0;
@@ -401,6 +368,39 @@ library SafeERC20 {
             // solhint-disable-next-line max-line-length
             require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
         }
+    }
+}
+
+
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/math/Math.sol
+
+// pragma solidity ^0.6.0;
+
+/**
+ * @dev Standard math utilities missing in the Solidity language.
+ */
+library Math {
+    /**
+     * @dev Returns the largest of two numbers.
+     */
+    function max(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a >= b ? a : b;
+    }
+
+    /**
+     * @dev Returns the smallest of two numbers.
+     */
+    function min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+
+    /**
+     * @dev Returns the average of two numbers. The result is rounded towards
+     * zero.
+     */
+    function average(uint256 a, uint256 b) internal pure returns (uint256) {
+        // (a + b) / 2 can overflow, so we distribute
+        return (a / 2) + (b / 2) + ((a % 2 + b % 2) / 2);
     }
 }
 
@@ -877,10 +877,10 @@ interface ISporeToken {
 }
 
 
-// Root file: contracts/SporePool.sol
+// Dependency file: contracts/SporePool.sol
 
 
-pragma solidity ^0.6.0;
+// pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
 // import "@openzeppelin/contracts-ethereum-package/contracts/math/Math.sol";
@@ -1165,4 +1165,91 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
     event DaoRewardPaid(address indexed user, uint256 reward);
     event MushroomsGrown(address indexed user, uint256 number);
     event Recovered(address token, uint256 amount);
+}
+
+
+// Root file: contracts/SporePoolEth.sol
+
+
+pragma solidity ^0.6.0;
+pragma experimental ABIEncoderV2;
+
+// import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
+
+// import "contracts/SporePool.sol";
+
+/*
+    ETH Variant of SporePool
+*/
+contract SporePoolEth is SporePool {
+    using SafeMath for uint256;
+    using SafeERC20 for IERC20;
+
+    /* ========== CONSTRUCTOR ========== */
+
+    function initialize(
+        address _sporeToken,
+        address _stakingToken,
+        address _mission,
+        address _bannedContractList,
+        address _devRewardAddress,
+        address daoAgent_,
+        uint256[5] memory uintParams
+    ) public override initializer {
+        __Context_init_unchained();
+        __Pausable_init_unchained();
+        __ReentrancyGuard_init_unchained();
+        __Ownable_init_unchained();
+
+        sporeToken = ISporeToken(_sporeToken);
+        mission = IMission(_mission);
+        bannedContractList = BannedContractList(_bannedContractList);
+
+        decreaseRateMultiplier = 50;
+        increaseRateMultiplier = 150;
+
+        /*
+            [0] uint256 _devRewardPercentage,
+            [1] uint256 stakingEnabledTime_,
+            [2] uint256 votingEnabledTime_,
+            [3] uint256 voteDuration_,
+            [4] uint256 initialRewardRate_,
+        */
+
+        sporesPerSecond = uintParams[4];
+
+        devRewardPercentage = uintParams[0];
+        devRewardAddress = _devRewardAddress;
+
+        stakingEnabledTime = uintParams[1];
+        votingEnabledTime = uintParams[2];
+        nextVoteAllowedAt = uintParams[2];
+        voteDuration = uintParams[3];
+        lastVoteNonce = 0;
+
+        enokiDaoAgent = daoAgent_;
+    }
+
+    /* ========== MUTATIVE FUNCTIONS ========== */
+    function stake(uint256 amount) external override nonReentrant defend(bannedContractList) whenNotPaused updateReward(msg.sender) {
+        revert("Use stakeEth function for ETH variant");
+    }
+
+    function stakeEth(uint256 amount) external payable nonReentrant defend(bannedContractList) whenNotPaused updateReward(msg.sender) {
+        require(amount > 0, "Cannot stake 0");
+        require(msg.value == amount, "Incorrect ETH transfer amount");
+        require(now > stakingEnabledTime, "Cannot stake before staking enabled");
+        _totalSupply = _totalSupply.add(amount);
+        _balances[msg.sender] = _balances[msg.sender].add(amount);
+        emit Staked(msg.sender, amount);
+    }
+
+    function withdraw(uint256 amount) public override nonReentrant updateReward(msg.sender) {
+        require(amount > 0, "Cannot withdraw 0");
+        _totalSupply = _totalSupply.sub(amount);
+        _balances[msg.sender] = _balances[msg.sender].sub(amount);
+        msg.sender.transfer(amount);
+        emit Withdrawn(msg.sender, amount);
+    }
 }

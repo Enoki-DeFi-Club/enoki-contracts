@@ -48,6 +48,15 @@ contract MetadataResolver is AccessControlUpgradeSafe {
         return metadataAdapters[nftContract];
     }
 
+    function isStakeable(address nftContract, uint256 nftIndex) external view returns (bool) {
+        if (metadataAdapters[nftContract] == address(0)) {
+            return false;
+        }
+        
+        MetadataAdapter resolver = MetadataAdapter(metadataAdapters[nftContract]);
+        return resolver.isStakeable(nftIndex);
+    }
+
     function initialize(address initialLifespanModifier_) public initializer {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(LIFESPAN_MODIFY_REQUEST_ROLE, initialLifespanModifier_);

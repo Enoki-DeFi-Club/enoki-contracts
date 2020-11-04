@@ -2024,15 +2024,12 @@ contract MushroomNFT is ERC721UpgradeSafe, OwnableUpgradeSafe, AccessControlUpgr
         _clearMushroomData(tokenId);
     }
 
-    // TODO: Approved Minters only
     function mint(address recipient, uint256 tokenId, uint256 speciesId, uint256 lifespan) public onlyMinter {
         _mintWithMetadata(recipient, tokenId, speciesId, lifespan);
     }
 
-    // TODO: Allowed approved contracts to set lifespan
     function setMushroomLifespan(uint256 index, uint256 lifespan) public onlyLifespanModifier {
-        MushroomLib.MushroomData storage data = mushroomData[index];
-        data.lifespan = lifespan;
+        mushroomData[index].lifespan = lifespan;
     }
 
     function setSpeciesUri(uint256 speciesId, string memory URI) public onlyOwner {
@@ -2054,7 +2051,11 @@ contract MushroomNFT is ERC721UpgradeSafe, OwnableUpgradeSafe, AccessControlUpgr
     // TODO: We don't really have to do this as a newly minted mushroom will set the data
     function _clearMushroomData(uint256 tokenId) internal {
         MushroomLib.MushroomData storage data = mushroomData[tokenId];
-        MushroomLib.MushroomType storage species = mushroomTypes[data.species];     
+        MushroomLib.MushroomType storage species = mushroomTypes[data.species];   
+
+        mushroomData[tokenId].species = 0;
+        mushroomData[tokenId].strength = 0;
+        mushroomData[tokenId].lifespan = 0;
 
         species.minted = species.minted.sub(1);
     }

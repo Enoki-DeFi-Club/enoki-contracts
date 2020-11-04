@@ -31,6 +31,11 @@ contract MushroomAdapter is Initializable, MetadataAdapter {
         return mData;
     }
 
+    // Mushrooms can always be staked
+    function isStakeable(uint256 nftIndex) external override view returns (bool) {
+        return true;
+    }
+
     // All Mushrooms are burnable
     function isBurnable(uint256 index) external override view returns (bool) {
         return true;

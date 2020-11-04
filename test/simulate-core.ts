@@ -366,7 +366,7 @@ describe("Simulate Core", function () {
         console.log("Add Liquidity..");
         const result = await enoki.devMultisig.execTransaction({
             to: enoki.uniswapRouter.address,
-            value: utils.parseEther("301"),
+            value: utils.parseEther("300"),
             data: uniswapRouterIface.encodeFunctionData("addLiquidityETH", [
                 enoki.sporeToken.address,
                 utils.parseEther("5000"),

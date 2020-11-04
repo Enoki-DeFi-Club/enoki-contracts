@@ -762,6 +762,7 @@ abstract contract MetadataAdapter is AccessControlUpgradeSafe {
     function getMushroomData(uint256 index, bytes calldata data) external virtual view returns (MushroomLib.MushroomData memory);
     function setMushroomLifespan(uint256 index, uint256 lifespan, bytes calldata data) external virtual;
     function isBurnable(uint256 index) external view virtual returns (bool);
+    function isStakeable(uint256 index) external view virtual returns (bool);
 }
 
 
@@ -814,6 +815,15 @@ contract MetadataResolver is AccessControlUpgradeSafe {
 
     function getMetadataAdapter(address nftContract) external view returns (address) {
         return metadataAdapters[nftContract];
+    }
+
+    function isStakeable(address nftContract, uint256 nftIndex) external view returns (bool) {
+        if (metadataAdapters[nftContract] == address(0)) {
+            return false;
+        }
+        
+        MetadataAdapter resolver = MetadataAdapter(metadataAdapters[nftContract]);
+        return resolver.isStakeable(nftIndex);
     }
 
     function initialize(address initialLifespanModifier_) public initializer {

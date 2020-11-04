@@ -15,6 +15,7 @@ export interface GeyserParams {
     initialSharesPerToken: BigNumber;
     maxStakesPerAddress: BigNumber;
     devRewardPercentage: BigNumber;
+    maxAirdropPool: BigNumber;
 }
 
 export interface PoolConfig {
@@ -82,6 +83,7 @@ export interface LaunchConfig {
         stakingStartTime: BigNumber;
         votingStartTime: BigNumber;
         voteDuration: BigNumber;
+        enokiEnabledTime: BigNumber;
     };
     pools: PoolConfig[];
     species: MushroomConfig;
@@ -197,6 +199,7 @@ const MAINNET = {
         initialSharesPerToken: BigNumber.from("1000000"),
         maxStakesPerAddress: BigNumber.from(1000),
         devRewardPercentage: BigNumber.from(6),
+        maxAirdropPool: ETH("300")
     },
     startingLiquidity: {
         spore: utils.parseEther("5000"),
@@ -217,6 +220,7 @@ const MAINNET = {
         stakingStartTime: BN(1604253600), // 10/31/2020 @ 6:00pm (UTC)
         votingStartTime: BN(1604253600).add(daysToSeconds(7)), // 10/31/2020 @ 6:00pm (UTC)
         voteDuration: daysToSeconds(7),
+        enokiEnabledTime: BN(1604347200) // 11/2/2020 @ 6:00pm (UTC)
     },
     pools: [
         {

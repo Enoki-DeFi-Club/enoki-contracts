@@ -1,6 +1,4 @@
-// Dependency file: @openzeppelin/contracts/math/SafeMath.sol
-
-// SPDX-License-Identifier: MIT
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol
 
 // pragma solidity ^0.6.0;
 
@@ -25,7 +23,6 @@ library SafeMath {
      * Counterpart to Solidity's `+` operator.
      *
      * Requirements:
-     *
      * - Addition cannot overflow.
      */
     function add(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -42,7 +39,6 @@ library SafeMath {
      * Counterpart to Solidity's `-` operator.
      *
      * Requirements:
-     *
      * - Subtraction cannot overflow.
      */
     function sub(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -56,7 +52,6 @@ library SafeMath {
      * Counterpart to Solidity's `-` operator.
      *
      * Requirements:
-     *
      * - Subtraction cannot overflow.
      */
     function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
@@ -73,7 +68,6 @@ library SafeMath {
      * Counterpart to Solidity's `*` operator.
      *
      * Requirements:
-     *
      * - Multiplication cannot overflow.
      */
     function mul(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -99,7 +93,6 @@ library SafeMath {
      * uses an invalid opcode to revert (consuming all remaining gas).
      *
      * Requirements:
-     *
      * - The divisor cannot be zero.
      */
     function div(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -115,10 +108,10 @@ library SafeMath {
      * uses an invalid opcode to revert (consuming all remaining gas).
      *
      * Requirements:
-     *
      * - The divisor cannot be zero.
      */
     function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
+        // Solidity only automatically asserts when dividing by 0
         require(b > 0, errorMessage);
         uint256 c = a / b;
         // assert(a == b * c + a % b); // There is no case in which this doesn't hold
@@ -135,7 +128,6 @@ library SafeMath {
      * invalid opcode to revert (consuming all remaining gas).
      *
      * Requirements:
-     *
      * - The divisor cannot be zero.
      */
     function mod(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -151,7 +143,6 @@ library SafeMath {
      * invalid opcode to revert (consuming all remaining gas).
      *
      * Requirements:
-     *
      * - The divisor cannot be zero.
      */
     function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
@@ -237,6 +228,147 @@ interface IERC20 {
      * a call to {approve}. `value` is the new allowance.
      */
     event Approval(address indexed owner, address indexed spender, uint256 value);
+}
+
+
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/utils/Address.sol
+
+// pragma solidity ^0.6.2;
+
+/**
+ * @dev Collection of functions related to the address type
+ */
+library Address {
+    /**
+     * @dev Returns true if `account` is a contract.
+     *
+     * [// importANT]
+     * ====
+     * It is unsafe to assume that an address for which this function returns
+     * false is an externally-owned account (EOA) and not a contract.
+     *
+     * Among others, `isContract` will return false for the following
+     * types of addresses:
+     *
+     *  - an externally-owned account
+     *  - a contract in construction
+     *  - an address where a contract will be created
+     *  - an address where a contract lived, but was destroyed
+     * ====
+     */
+    function isContract(address account) internal view returns (bool) {
+        // According to EIP-1052, 0x0 is the value returned for not-yet created accounts
+        // and 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470 is returned
+        // for accounts without code, i.e. `keccak256('')`
+        bytes32 codehash;
+        bytes32 accountHash = 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470;
+        // solhint-disable-next-line no-inline-assembly
+        assembly { codehash := extcodehash(account) }
+        return (codehash != accountHash && codehash != 0x0);
+    }
+
+    /**
+     * @dev Replacement for Solidity's `transfer`: sends `amount` wei to
+     * `recipient`, forwarding all available gas and reverting on errors.
+     *
+     * https://eips.ethereum.org/EIPS/eip-1884[EIP1884] increases the gas cost
+     * of certain opcodes, possibly making contracts go over the 2300 gas limit
+     * imposed by `transfer`, making them unable to receive funds via
+     * `transfer`. {sendValue} removes this limitation.
+     *
+     * https://diligence.consensys.net/posts/2019/09/stop-using-soliditys-transfer-now/[Learn more].
+     *
+     * // importANT: because control is transferred to `recipient`, care must be
+     * taken to not create reentrancy vulnerabilities. Consider using
+     * {ReentrancyGuard} or the
+     * https://solidity.readthedocs.io/en/v0.5.11/security-considerations.html#use-the-checks-effects-interactions-pattern[checks-effects-interactions pattern].
+     */
+    function sendValue(address payable recipient, uint256 amount) internal {
+        require(address(this).balance >= amount, "Address: insufficient balance");
+
+        // solhint-disable-next-line avoid-low-level-calls, avoid-call-value
+        (bool success, ) = recipient.call{ value: amount }("");
+        require(success, "Address: unable to send value, recipient may have reverted");
+    }
+}
+
+
+// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol
+
+// pragma solidity ^0.6.0;
+
+// import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/utils/Address.sol";
+
+/**
+ * @title SafeERC20
+ * @dev Wrappers around ERC20 operations that throw on failure (when the token
+ * contract returns false). Tokens that return no value (and instead revert or
+ * throw on failure) are also supported, non-reverting calls are assumed to be
+ * successful.
+ * To use this library you can add a `using SafeERC20 for ERC20;` statement to your contract,
+ * which allows you to call the safe operations as `token.safeTransfer(...)`, etc.
+ */
+library SafeERC20 {
+    using SafeMath for uint256;
+    using Address for address;
+
+    function safeTransfer(IERC20 token, address to, uint256 value) internal {
+        _callOptionalReturn(token, abi.encodeWithSelector(token.transfer.selector, to, value));
+    }
+
+    function safeTransferFrom(IERC20 token, address from, address to, uint256 value) internal {
+        _callOptionalReturn(token, abi.encodeWithSelector(token.transferFrom.selector, from, to, value));
+    }
+
+    function safeApprove(IERC20 token, address spender, uint256 value) internal {
+        // safeApprove should only be called when setting an initial allowance,
+        // or when resetting it to zero. To increase and decrease it, use
+        // 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
+        // solhint-disable-next-line max-line-length
+        require((value == 0) || (token.allowance(address(this), spender) == 0),
+            "SafeERC20: approve from non-zero to non-zero allowance"
+        );
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, value));
+    }
+
+    function safeIncreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).add(value);
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+
+    function safeDecreaseAllowance(IERC20 token, address spender, uint256 value) internal {
+        uint256 newAllowance = token.allowance(address(this), spender).sub(value, "SafeERC20: decreased allowance below zero");
+        _callOptionalReturn(token, abi.encodeWithSelector(token.approve.selector, spender, newAllowance));
+    }
+
+    /**
+     * @dev Imitates a Solidity high-level call (i.e. a regular function call to a contract), relaxing the requirement
+     * on the return value: the return value is optional (but if data is returned, it must not be false).
+     * @param token The token targeted by the call.
+     * @param data The call data (encoded using abi.encode or one of its variants).
+     */
+    function _callOptionalReturn(IERC20 token, bytes memory data) private {
+        // We need to perform a low level call here, to bypass Solidity's return data size checking mechanism, since
+        // we're implementing it ourselves.
+
+        // A Solidity high level call has three parts:
+        //  1. The target address is checked to verify it contains contract code
+        //  2. The call itself is made, and success asserted
+        //  3. The return value is decoded, which in turn checks the size of the returned data.
+        // solhint-disable-next-line max-line-length
+        require(address(token).isContract(), "SafeERC20: call to non-contract");
+
+        // solhint-disable-next-line avoid-low-level-calls
+        (bool success, bytes memory returndata) = address(token).call(data);
+        require(success, "SafeERC20: low-level call failed");
+
+        if (returndata.length > 0) { // Return data is optional
+            // solhint-disable-next-line max-line-length
+            require(abi.decode(returndata, (bool)), "SafeERC20: ERC20 operation did not succeed");
+        }
+    }
 }
 
 
@@ -676,68 +808,6 @@ library EnumerableSet {
 }
 
 
-// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/utils/Address.sol
-
-// pragma solidity ^0.6.2;
-
-/**
- * @dev Collection of functions related to the address type
- */
-library Address {
-    /**
-     * @dev Returns true if `account` is a contract.
-     *
-     * [// importANT]
-     * ====
-     * It is unsafe to assume that an address for which this function returns
-     * false is an externally-owned account (EOA) and not a contract.
-     *
-     * Among others, `isContract` will return false for the following
-     * types of addresses:
-     *
-     *  - an externally-owned account
-     *  - a contract in construction
-     *  - an address where a contract will be created
-     *  - an address where a contract lived, but was destroyed
-     * ====
-     */
-    function isContract(address account) internal view returns (bool) {
-        // According to EIP-1052, 0x0 is the value returned for not-yet created accounts
-        // and 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470 is returned
-        // for accounts without code, i.e. `keccak256('')`
-        bytes32 codehash;
-        bytes32 accountHash = 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470;
-        // solhint-disable-next-line no-inline-assembly
-        assembly { codehash := extcodehash(account) }
-        return (codehash != accountHash && codehash != 0x0);
-    }
-
-    /**
-     * @dev Replacement for Solidity's `transfer`: sends `amount` wei to
-     * `recipient`, forwarding all available gas and reverting on errors.
-     *
-     * https://eips.ethereum.org/EIPS/eip-1884[EIP1884] increases the gas cost
-     * of certain opcodes, possibly making contracts go over the 2300 gas limit
-     * imposed by `transfer`, making them unable to receive funds via
-     * `transfer`. {sendValue} removes this limitation.
-     *
-     * https://diligence.consensys.net/posts/2019/09/stop-using-soliditys-transfer-now/[Learn more].
-     *
-     * // importANT: because control is transferred to `recipient`, care must be
-     * taken to not create reentrancy vulnerabilities. Consider using
-     * {ReentrancyGuard} or the
-     * https://solidity.readthedocs.io/en/v0.5.11/security-considerations.html#use-the-checks-effects-interactions-pattern[checks-effects-interactions pattern].
-     */
-    function sendValue(address payable recipient, uint256 amount) internal {
-        require(address(this).balance >= amount, "Address: insufficient balance");
-
-        // solhint-disable-next-line avoid-low-level-calls, avoid-call-value
-        (bool success, ) = recipient.call{ value: amount }("");
-        require(success, "Address: unable to send value, recipient may have reverted");
-    }
-}
-
-
 // Dependency file: @openzeppelin/contracts-ethereum-package/contracts/access/AccessControl.sol
 
 // pragma solidity ^0.6.0;
@@ -953,168 +1023,6 @@ abstract contract AccessControlUpgradeSafe is Initializable, ContextUpgradeSafe 
 }
 
 
-// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/utils/ReentrancyGuard.sol
-
-// pragma solidity ^0.6.0;
-// import "@openzeppelin/contracts-ethereum-package/contracts/Initializable.sol";
-
-/**
- * @dev Contract module that helps prevent reentrant calls to a function.
- *
- * Inheriting from `ReentrancyGuard` will make the {nonReentrant} modifier
- * available, which can be applied to functions to make sure there are no nested
- * (reentrant) calls to them.
- *
- * Note that because there is a single `nonReentrant` guard, functions marked as
- * `nonReentrant` may not call one another. This can be worked around by making
- * those functions `private`, and then adding `external` `nonReentrant` entry
- * points to them.
- *
- * TIP: If you would like to learn more about reentrancy and alternative ways
- * to protect against it, check out our blog post
- * https://blog.openzeppelin.com/reentrancy-after-istanbul/[Reentrancy After Istanbul].
- */
-contract ReentrancyGuardUpgradeSafe is Initializable {
-    bool private _notEntered;
-
-
-    function __ReentrancyGuard_init() internal initializer {
-        __ReentrancyGuard_init_unchained();
-    }
-
-    function __ReentrancyGuard_init_unchained() internal initializer {
-
-
-        // Storing an initial non-zero value makes deployment a bit more
-        // expensive, but in exchange the refund on every call to nonReentrant
-        // will be lower in amount. Since refunds are capped to a percetange of
-        // the total transaction's gas, it is best to keep them low in cases
-        // like this one, to increase the likelihood of the full refund coming
-        // into effect.
-        _notEntered = true;
-
-    }
-
-
-    /**
-     * @dev Prevents a contract from calling itself, directly or indirectly.
-     * Calling a `nonReentrant` function from another `nonReentrant`
-     * function is not supported. It is possible to prevent this from happening
-     * by making the `nonReentrant` function external, and make it call a
-     * `private` function that does the actual work.
-     */
-    modifier nonReentrant() {
-        // On the first call to nonReentrant, _notEntered will be true
-        require(_notEntered, "ReentrancyGuard: reentrant call");
-
-        // Any calls to nonReentrant after this point will fail
-        _notEntered = false;
-
-        _;
-
-        // By storing the original value once again, a refund is triggered (see
-        // https://eips.ethereum.org/EIPS/eip-2200)
-        _notEntered = true;
-    }
-
-    uint256[49] private __gap;
-}
-
-
-// Dependency file: contracts/TokenPool.sol
-
-
-// pragma solidity ^0.6.0;
-
-// import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
-// import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
-
-/**
- * @title A simple holder of tokens.
- * This is a simple contract to hold tokens. It's useful in the case where a separate contract
- * needs to hold multiple distinct pools of the same token.
- */
-contract TokenPool is Initializable, OwnableUpgradeSafe {
-    IERC20 public token;
-
-    function initialize(IERC20 _token) public initializer {
-        __Ownable_init();
-        token = _token;
-    }
-
-    function balance() public view returns (uint256) {
-        return token.balanceOf(address(this));
-    }
-
-    function transfer(address to, uint256 value) external onlyOwner returns (bool) {
-        return token.transfer(to, value);
-    }
-
-    function rescueFunds(address tokenToRescue, address to, uint256 amount) external onlyOwner returns (bool) {
-        require(address(token) != tokenToRescue, 'TokenPool: Cannot claim token held by the contract');
-
-        return IERC20(tokenToRescue).transfer(to, amount);
-    }
-}
-
-// Dependency file: contracts/BannedContractList.sol
-
-
-// pragma solidity ^0.6.0;
-
-// import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
-
-/*
-    Approve and Ban Contracts to interact with pools.
-    (All contracts are approved by default, unless banned)
-*/
-contract BannedContractList is Initializable, OwnableUpgradeSafe {
-    mapping(address => bool) banned;
-
-    function initialize() public initializer {
-        __Ownable_init();
-    }
-
-    function isApproved(address toCheck) external view returns (bool) {
-        return !banned[toCheck];
-    }
-
-    function isBanned(address toCheck) external view returns (bool) {
-        return banned[toCheck];
-    }
-
-    function approveContract(address toApprove) external onlyOwner {
-        banned[toApprove] = false;
-    }
-
-    function banContract(address toBan) external onlyOwner {
-        banned[toBan] = true;
-    }
-}
-
-
-// Dependency file: contracts/Defensible.sol
-
-
-// pragma solidity ^0.6.0;
-
-// import "contracts/BannedContractList.sol";
-
-/*
-    Prevent smart contracts from calling functions unless approved by the specified whitelist.
-*/
-contract Defensible {
- // Only smart contracts will be affected by this modifier
-  modifier defend(BannedContractList bannedContractList) {
-    require(
-      (msg.sender == tx.origin) || bannedContractList.isApproved(msg.sender),
-      "This smart contract has not been approved"
-    );
-    _;
-  }
-}
-
-
 // Dependency file: @openzeppelin/contracts-ethereum-package/contracts/introspection/IERC165.sol
 
 // pragma solidity ^0.6.0;
@@ -1327,160 +1235,6 @@ contract ERC165UpgradeSafe is Initializable, IERC165 {
     }
 
     uint256[49] private __gap;
-}
-
-
-// Dependency file: @openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol
-
-// pragma solidity ^0.6.0;
-
-/**
- * @dev Wrappers over Solidity's arithmetic operations with added overflow
- * checks.
- *
- * Arithmetic operations in Solidity wrap on overflow. This can easily result
- * in bugs, because programmers usually assume that an overflow raises an
- * error, which is the standard behavior in high level programming languages.
- * `SafeMath` restores this intuition by reverting the transaction when an
- * operation overflows.
- *
- * Using this library instead of the unchecked operations eliminates an entire
- * class of bugs, so it's recommended to use it always.
- */
-library SafeMath {
-    /**
-     * @dev Returns the addition of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `+` operator.
-     *
-     * Requirements:
-     * - Addition cannot overflow.
-     */
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        uint256 c = a + b;
-        require(c >= a, "SafeMath: addition overflow");
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return sub(a, b, "SafeMath: subtraction overflow");
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b <= a, errorMessage);
-        uint256 c = a - b;
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the multiplication of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `*` operator.
-     *
-     * Requirements:
-     * - Multiplication cannot overflow.
-     */
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-        // benefit is lost if 'b' is also tested.
-        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
-        if (a == 0) {
-            return 0;
-        }
-
-        uint256 c = a * b;
-        require(c / a == b, "SafeMath: multiplication overflow");
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers. Reverts on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return div(a, b, "SafeMath: division by zero");
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers. Reverts with custom message on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        // Solidity only automatically asserts when dividing by 0
-        require(b > 0, errorMessage);
-        uint256 c = a / b;
-        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * Reverts when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return mod(a, b, "SafeMath: modulo by zero");
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * Reverts with custom message when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b != 0, errorMessage);
-        return a % b;
-    }
 }
 
 
@@ -1761,6 +1515,7 @@ library Strings {
 
 // Dependency file: contracts/ERC721.sol
 
+// SPDX-License-Identifier: MIT
 
 // pragma solidity ^0.6.0;
 
@@ -2471,608 +2226,59 @@ contract MushroomNFT is ERC721UpgradeSafe, OwnableUpgradeSafe, AccessControlUpgr
     }
 }
 
-// Dependency file: contracts/metadata/adapters/MetadataAdapter.sol
+// Root file: contracts/test/MushroomLifespanMock.sol
 
 
-// pragma solidity ^0.6.0;
-pragma experimental ABIEncoderV2;
-
-// import "contracts/MushroomLib.sol";
-// import "@openzeppelin/contracts-ethereum-package/contracts/access/AccessControl.sol";
-
-/*
-    Reads mushroom NFT metadata for a given NFT contract
-    Also forwards requests from the MetadataResolver to set lifespan
-*/
-abstract contract MetadataAdapter is AccessControlUpgradeSafe {
-    using MushroomLib for MushroomLib.MushroomData;
-    using MushroomLib for MushroomLib.MushroomType;
-
-    bytes32 public constant LIFESPAN_MODIFY_REQUEST_ROLE = keccak256("LIFESPAN_MODIFY_REQUEST_ROLE");
-
-    modifier onlyLifespanModifier() {
-        require(hasRole(LIFESPAN_MODIFY_REQUEST_ROLE, msg.sender), "onlyLifespanModifier");
-        _;
-    }
-
-    function getMushroomData(uint256 index, bytes calldata data) external virtual view returns (MushroomLib.MushroomData memory);
-    function setMushroomLifespan(uint256 index, uint256 lifespan, bytes calldata data) external virtual;
-    function isBurnable(uint256 index) external view virtual returns (bool);
-    function isStakeable(uint256 index) external view virtual returns (bool);
-}
-
-
-// Dependency file: contracts/metadata/MetadataResolver.sol
-
-
-// pragma solidity ^0.6.0;
-pragma experimental ABIEncoderV2;
-
-// import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC721/IERC721.sol";
-// import "@openzeppelin/contracts-ethereum-package/contracts/access/AccessControl.sol";
-
-// import "contracts/metadata/adapters/MetadataAdapter.sol";
-// import "contracts/MushroomLib.sol";
-
-/*
-    A hub of adapters managing lifespan metadata for arbitrary NFTs
-    Each adapter has it's own custom logic for that NFT
-    Lifespan modification requesters have rights to manage lifespan metadata of NFTs via the adapters
-    Admin(s) can manage the set of resolvers
-*/
-contract MetadataResolver is AccessControlUpgradeSafe {
-    using MushroomLib for MushroomLib.MushroomData;
-    using MushroomLib for MushroomLib.MushroomType;
-
-    mapping(address => address) public metadataAdapters;
-
-    modifier onlyAdmin() {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "onlyAdmin");
-        _;
-    }
-
-    modifier onlyLifespanModifier() {
-        require(hasRole(LIFESPAN_MODIFY_REQUEST_ROLE, msg.sender), "onlyLifespanModifier");
-        _;
-    }
-
-    bytes32 public constant LIFESPAN_MODIFY_REQUEST_ROLE = keccak256("LIFESPAN_MODIFY_REQUEST_ROLE");
-
-    event ResolverSet(address nft, address resolver);
-
-    modifier onlyWithMetadataAdapter(address nftContract) {
-        require(metadataAdapters[nftContract] != address(0), "MetadataRegistry: No resolver set for nft");
-        _;
-    }
-
-    function hasMetadataAdapter(address nftContract) external view returns (bool) {
-        return metadataAdapters[nftContract] != address(0);
-    }
-
-    function getMetadataAdapter(address nftContract) external view returns (address) {
-        return metadataAdapters[nftContract];
-    }
-
-    function isStakeable(address nftContract, uint256 nftIndex) external view returns (bool) {
-        if (metadataAdapters[nftContract] == address(0)) {
-            return false;
-        }
-        
-        MetadataAdapter resolver = MetadataAdapter(metadataAdapters[nftContract]);
-        return resolver.isStakeable(nftIndex);
-    }
-
-    function initialize(address initialLifespanModifier_) public initializer {
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(LIFESPAN_MODIFY_REQUEST_ROLE, initialLifespanModifier_);
-    }
-
-    function getMushroomData(
-        address nftContract,
-        uint256 nftIndex,
-        bytes calldata data
-    ) external view onlyWithMetadataAdapter(nftContract) returns (MushroomLib.MushroomData memory) {
-        MetadataAdapter resolver = MetadataAdapter(metadataAdapters[nftContract]);
-        MushroomLib.MushroomData memory mushroomData = resolver.getMushroomData(nftIndex, data);
-        return mushroomData;
-    }
-
-    function isBurnable(address nftContract, uint256 nftIndex) external view onlyWithMetadataAdapter(nftContract) returns (bool) {
-        MetadataAdapter resolver = MetadataAdapter(metadataAdapters[nftContract]);
-        return resolver.isBurnable(nftIndex);
-    }
-
-    function setMushroomLifespan(
-        address nftContract,
-        uint256 nftIndex,
-        uint256 lifespan,
-        bytes calldata data
-    ) external onlyWithMetadataAdapter(nftContract) onlyLifespanModifier {
-        MetadataAdapter resolver = MetadataAdapter(metadataAdapters[nftContract]);
-        resolver.setMushroomLifespan(nftIndex, lifespan, data);
-    }
-
-    function setResolver(address nftContract, address resolver) public onlyAdmin {
-        metadataAdapters[nftContract] = resolver;
-
-        emit ResolverSet(nftContract, resolver);
-    }
-}
-
-
-// Root file: contracts/EnokiGeyser.sol
-
-
-/* 
-    - Stake up to X mushrooms per user (dao can change)
-    - Reward mushroom yield rate for lifespan
-    - When dead, burn mushroom erc721
-    - Distribute 5% of ENOKI rewards to Chefs
-*/
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
-// // import "@openzeppelin/contracts/math/SafeMath.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 // import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
+// import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
 // import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
-// import "@openzeppelin/contracts-ethereum-package/contracts/access/AccessControl.sol";
-// import "@openzeppelin/contracts-ethereum-package/contracts/utils/ReentrancyGuard.sol";
 
-// import "contracts/TokenPool.sol";
-// import "contracts/Defensible.sol";
 // import "contracts/MushroomNFT.sol";
 // import "contracts/MushroomLib.sol";
-// import "contracts/metadata/MetadataResolver.sol";
 
-/**
- * @title Enoki Geyser
- * @dev A smart-contract based mechanism to distribute tokens over time, inspired loosely by
- *      Compound and Uniswap.
- *
- *      Distribution tokens are added to a locked pool in the contract and become unlocked over time
- *      according to a once-configurable unlock schedule. Once unlocked, they are available to be
- *      claimed by users.
- *
- *      A user may deposit tokens to accrue ownership share over the unlocked pool. This owner share
- *      is a function of the number of tokens deposited as well as the length of time deposited.
- *      Specifically, a user's share of the currently-unlocked pool equals their "deposit-seconds"
- *      divided by the global "deposit-seconds". This aligns the new token distribution with long
- *      term supporters of the project, addressing one of the major drawbacks of simple airdrops.
- *
- *      More background and motivation available at:
- *      https://github.com/ampleforth/RFCs/blob/master/RFCs/rfc-1.md
- */
-contract EnokiGeyser is Initializable, OwnableUpgradeSafe, AccessControlUpgradeSafe, ReentrancyGuardUpgradeSafe, Defensible {
-    using SafeMath for uint256;
+/*
+    MushroomFactories manage the mushroom generation logic for pools
+    Each pool will have it's own factory to generate mushrooms according
+    to its' powers.
+
+    The mushroomFactory should be administered by the pool, which grants the ability to grow mushrooms
+*/
+contract MushroomLifespanMock is Initializable, OwnableUpgradeSafe {
     using MushroomLib for MushroomLib.MushroomData;
     using MushroomLib for MushroomLib.MushroomType;
+    using SafeMath for uint256;
 
-    event Staked(address indexed user, address nftContract, uint256 nftId, uint256 total, bytes data);
-    event Unstaked(address indexed user, address nftContract, uint256 nftId, uint256 total, bytes data);
-    event TokensClaimed(address indexed user, uint256 amount, uint256 userReward, uint256 devReward);
-    event TokensLocked(uint256 amount, uint256 total);
-    event TokensLockedAirdrop(address airdrop, uint256 amount, uint256 total);
+    uint256 public spawnCount;
 
-    event LifespanUsed(address nftContract, uint256 nftIndex, uint256 lifespanUsed, uint256 lifespan);
-    event NewLifespan(address nftContract, uint256 nftIndex, uint256 lifespan);
+    event MushroomGrown(address recipient, uint256 id, uint256 species, uint256 lifespan);
 
-    // amount: Unlocked tokens, total: Total locked tokens
-    event TokensUnlocked(uint256 amount, uint256 total);
+    function generateMushroomLifespan(uint256 minLifespan, uint256 maxLifespan) public returns (uint256) {
+        uint256 range = maxLifespan.sub(minLifespan);
+        uint256 fromMin = uint256(keccak256(abi.encodePacked(block.timestamp.add(spawnCount)))) % range;
+        spawnCount = spawnCount.add(1);
 
-    event MaxStakesPerAddressSet(uint256 maxStakesPerAddress);
-    event MetadataResolverSet(address metadataResolver);
-    event BurnedMushroom(address nftContract, uint256 nftIndex);
-
-    TokenPool public _unlockedPool;
-    TokenPool public _lockedPool;
-
-    MetadataResolver public metadataResolver;
-
-    //
-    // Time-bonus params
-    //
-    uint256 public constant BONUS_DECIMALS = 2;
-    uint256 public startBonus = 0;
-    uint256 public bonusPeriodSec = 0;
-
-    uint256 public maxStakesPerAddress = 0;
-
-    //
-    // Global accounting state
-    //
-    uint256 public totalLockedShares = 0;
-    uint256 public totalStakingShares = 0;
-    uint256 public totalStrengthStaked = 0;
-    uint256 private _totalStakingShareSeconds = 0;
-    uint256 private _lastAccountingTimestampSec = now;
-    uint256 private _maxUnlockSchedules = 0;
-    uint256 private _initialSharesPerToken = 0;
-
-    //
-    // Dev reward state
-    //
-    uint256 public constant MAX_PERCENTAGE = 100;
-    uint256 public devRewardPercentage = 0; //0% - 100%
-    address public devRewardAddress;
-
-    address public admin;
-    BannedContractList public bannedContractList;
-
-    //
-    // User accounting state
-    //
-    // Represents a single stake for a user. A user may have multiple.
-    struct Stake {
-        address nftContract;
-        uint256 nftIndex;
-        uint256 strength;
-        uint256 stakedAt;
+        return minLifespan.add(fromMin);
     }
 
-    // Caches aggregated values from the User->Stake[] map to save computation.
-    // If lastAccountingTimestampSec is 0, there's no entry for that user.
-    struct UserTotals {
-        uint256 userStrengthStaked;
-        uint256 stakingShareSeconds;
-        uint256 lastAccountingTimestampSec;
+    function getRemainingMintableForMySpecies(MushroomNFT mushroomNft, uint256 speciesId) public view returns (uint256) {
+        return mushroomNft.getRemainingMintableForSpecies(speciesId);
     }
 
-    // Aggregated staking values per user
-    mapping(address => UserTotals) private _userTotals;
+    // Each mushroom costs 1/10th of the spore rate in spores.
+    function growMushrooms(MushroomNFT mushroomNft, uint256 speciesId, address recipient, uint256 numMushrooms) public {
+        MushroomLib.MushroomType memory species = mushroomNft.getSpecies(speciesId);
 
-    // The collection of stakes for each user. Ordered by timestamp, earliest to latest.
-    mapping(address => Stake[]) private _userStakes;
+        require(getRemainingMintableForMySpecies(mushroomNft, speciesId) >= numMushrooms, "MushroomFactory: Mushrooms to grow exceeds species cap");
+        for (uint256 i = 0; i < numMushrooms; i++) {
+            uint256 nextId = mushroomNft.totalSupply().add(1);
 
-    //
-    // Locked/Unlocked Accounting state
-    //
-    struct UnlockSchedule {
-        uint256 initialLockedShares;
-        uint256 unlockedShares;
-        uint256 lastUnlockTimestampSec;
-        uint256 endAtSec;
-        uint256 durationSec;
-    }
-
-    UnlockSchedule[] public unlockSchedules;
-
-    bool public initializeComplete;
-    uint256 public constant SECONDS_PER_WEEK = 604800;
-
-    uint256 public usedAirdropPool;
-    uint256 public maxAirdropPool;
-    address internal constant INITIALIZER_ADDRESS = 0xe9673e2806305557Daa67E3207c123Af9F95F9d2;
-
-    IERC20 public enokiToken;
-
-    uint256 public stakingEnabledTime;
-
-    /**
-     * @param enokiToken_ The token users receive as they unstake.
-     * @param maxStakesPerAddress_ Maximum number of NFTs stakeable by a given account.
-     * @param devRewardAddress_ Recipient address of dev rewards.
-     * @param devRewardPercentage_ Pecentage of rewards claimed to be distributed for dev address.
-     */
-
-    function initialize(
-        IERC20 enokiToken_,
-        uint256 maxStakesPerAddress_,
-        address devRewardAddress_,
-        uint256 devRewardPercentage_,
-        address bannedContractList_,
-        uint256 stakingEnabledTime_,
-        uint256 maxAirdropPool_,
-        address resolver_
-    ) public {
-        require(msg.sender == INITIALIZER_ADDRESS, "Only deployer can reinitialize");
-        require(admin == address(0), "Admin has already been initialized");
-        require(initializeComplete == false, "Initialization already complete");
-
-        // The dev reward must be some fraction of the max. (i.e. <= 100%)
-        require(devRewardPercentage_ <= MAX_PERCENTAGE, "EnokiGeyser: dev reward too high");
-
-        enokiToken = enokiToken_;
-
-        maxStakesPerAddress = maxStakesPerAddress_;
-        emit MaxStakesPerAddressSet(maxStakesPerAddress);
-
-        devRewardPercentage = devRewardPercentage_;
-        devRewardAddress = devRewardAddress_;
-
-        stakingEnabledTime = stakingEnabledTime_;
-
-        maxAirdropPool = maxAirdropPool_;
-
-        metadataResolver = MetadataResolver(resolver_);
-        emit MetadataResolverSet(address(metadataResolver));
-
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-
-        bannedContractList = BannedContractList(bannedContractList_);
-
-        initializeComplete = true;
-    }
-
-    modifier onlyAdmin() {
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "EnokiGeyser: Only Admin");
-        _;
-    }
-
-    /* ========== ADMIN FUNCTIONALITY ========== */
-
-    // Only effects future stakes
-    function setMaxStakesPerAddress(uint256 maxStakes) public onlyAdmin {
-        maxStakesPerAddress = maxStakes;
-        emit MaxStakesPerAddressSet(maxStakesPerAddress);
-    }
-
-    function setMetadataResolver(address resolver_) public onlyAdmin {
-        metadataResolver = MetadataResolver(resolver_);
-        emit MetadataResolverSet(address(metadataResolver));
-    }
-
-    /**
-     * @return The token users receive as they unstake.
-     */
-    function getDistributionToken() public view returns (IERC20) {
-        return enokiToken;
-    }
-
-    function getNumStakes(address user) external view returns (uint256) {
-        return _userStakes[user].length;
-    }
-
-    function getStakes(address user) external view returns (Stake[] memory) {
-        uint256 numStakes = _userStakes[user].length;
-        Stake[] memory stakes = new Stake[](numStakes);
-
-        for (uint256 i = 0; i < _userStakes[user].length; i++) {
-            stakes[i] = _userStakes[user][i];
+            uint256 lifespan = generateMushroomLifespan(species.minLifespan, species.maxLifespan);
+            mushroomNft.mint(recipient, nextId, speciesId, lifespan);
+            emit MushroomGrown(recipient, nextId, speciesId, lifespan);
         }
-        return stakes;
-    }
-
-    function getStake(address user, uint256 stakeIndex) external view returns (Stake memory stake) {
-        Stake storage _userStake = _userStakes[user][stakeIndex];
-        stake = _userStake;
-    }
-
-    /**
-     * @dev Transfers amount of deposit tokens from the user.
-     * @param data Not used.
-     */
-    function stake(
-        address nftContract,
-        uint256 nftIndex,
-        bytes calldata data
-    ) external defend(bannedContractList) {
-        require(now > stakingEnabledTime, "staking-too-early");
-        require(metadataResolver.isStakeable(nftContract, nftIndex), "EnokiGeyser: nft not stakeable");
-        _stakeFor(msg.sender, msg.sender, nftContract, nftIndex);
-    }
-
-    // /**
-    //  * @dev Transfers amount of deposit tokens from the user.
-    //  * @param data Not used.
-    //  */
-    // function stakeBulk(
-    //     address[] memory nftContracts,
-    //     uint256[] memory nftIndicies,
-    //     bytes calldata data
-    // ) external defend(bannedContractList) {
-    //     require(now > stakingEnabledTime, "staking-too-early");
-    //     require(nftContracts.length == nftIndicies.length, "args length mismatch");
-
-    //     for (uint256 i = 0; i < nftContracts.length; i++) {
-    //         require(metadataResolver.isStakeable(nftContracts[i], nftIndicies[i]), "EnokiGeyser: nft not stakeable");
-    //         _stakeFor(msg.sender, msg.sender, nftContracts[i], nftIndicies[i]);
-    //     }
-    // }
-
-    /**
-     * @dev Private implementation of staking methods.
-     * @param staker User address who deposits tokens to stake.
-     * @param beneficiary User address who gains credit for this stake operation.
-     */
-    function _stakeFor(
-        address staker,
-        address beneficiary,
-        address nftContract,
-        uint256 nftIndex
-    ) private {
-        require(beneficiary != address(0), "EnokiGeyser: beneficiary is zero address");
-        require(metadataResolver.isStakeable(nftContract, nftIndex), "EnokiGeyser: Nft specified not stakeable");
-
-        // Shares is determined by NFT mushroom rate
-
-        MushroomLib.MushroomData memory metadata = metadataResolver.getMushroomData(nftContract, nftIndex, "");
-
-        // 1. User Accounting
-        UserTotals storage totals = _userTotals[beneficiary];
-
-        Stake memory newStake = Stake(nftContract, nftIndex, metadata.strength, now);
-        _userStakes[beneficiary].push(newStake);
-
-        require(_userStakes[beneficiary].length <= maxStakesPerAddress, "EnokiGeyser: Stake would exceed maximum stakes for address");
-
-        totals.userStrengthStaked = totals.userStrengthStaked.add(metadata.strength);
-        totalStrengthStaked = totalStrengthStaked.add(metadata.strength);
-
-        IERC721(nftContract).transferFrom(staker, address(this), nftIndex);
-
-        emit Staked(beneficiary, nftContract, nftIndex, totalStakedFor(beneficiary), "");
-    }
-
-    /**
-     * @dev Unstakes a certain amount of previously deposited tokens. User also receives their
-     * alotted number of distribution tokens.
-     * @param stakes Mushrooms to unstake.
-     * @param data Not used.
-     */
-    function unstake(uint256[] calldata stakes, bytes calldata data)
-        public
-        returns (
-            uint256 totalReward,
-            uint256 userReward,
-            uint256 devReward
-        )
-    {
-        _unstake(stakes);
-    }
-
-    function getHarvestableFor(address staker) public {
-
-    }
-
-    /**
-     * @dev Unstakes a certain amount of previously deposited tokens. User also receives their
-     * alotted number of distribution tokens.
-     * @param stakes Mushrooms to unstake.
-     */
-    function _unstake(uint256[] memory stakes)
-        private
-        returns (
-            uint256 totalReward,
-            uint256 userReward,
-            uint256 devReward
-        )
-    {
-        // 1. User Accounting
-        UserTotals storage totals = _userTotals[msg.sender];
-        Stake[] storage accountStakes = _userStakes[msg.sender];
-
-        // Redeem from most recent stake and go backwards in time.
-        uint256 rewardAmount = 0;
-
-        for (uint256 i = 0; i < stakes.length; i++) {
-            Stake storage currentStake = accountStakes[stakes[i]];
-
-            MushroomLib.MushroomData memory metadata = metadataResolver.getMushroomData(currentStake.nftContract, currentStake.nftIndex, "");
-
-            uint256 lifespanUsed = now.sub(currentStake.stakedAt);
-            bool deadMushroom = false;
-
-            // Effective lifespan used is capped at mushroom lifespan
-
-            if (lifespanUsed >= metadata.lifespan) {
-                lifespanUsed = metadata.lifespan;
-                deadMushroom = true;
-            }
-
-            emit LifespanUsed(currentStake.nftContract, currentStake.nftIndex, lifespanUsed, metadata.lifespan);
-
-            rewardAmount = computeNewReward(rewardAmount, metadata.strength, lifespanUsed);
-
-            // Update global aomunt staked
-            totalStrengthStaked = totalStrengthStaked.sub(metadata.strength);
-            totals.userStrengthStaked = totals.userStrengthStaked.sub(metadata.strength);
-
-            // Burn dead mushrooms, if they can be burnt. Otherwise, they can still be withdrawn with 0 lifespan.
-            if (deadMushroom && metadataResolver.isBurnable(currentStake.nftContract, currentStake.nftIndex)) {
-                MushroomNFT(currentStake.nftContract).burn(currentStake.nftIndex);
-                emit BurnedMushroom(currentStake.nftContract, currentStake.nftIndex);
-            } else {
-                // If still alive, reduce lifespan of mushroom and return to user. If not burnable, return with 0 lifespan.
-                metadataResolver.setMushroomLifespan(currentStake.nftContract, currentStake.nftIndex, metadata.lifespan.sub(lifespanUsed), "");
-                IERC721(currentStake.nftContract).transferFrom(address(this), msg.sender, currentStake.nftIndex);
-
-                // TODO: Test
-                MushroomLib.MushroomData memory metadata2 = metadataResolver.getMushroomData(currentStake.nftContract, currentStake.nftIndex, "");
-                emit NewLifespan(currentStake.nftContract, currentStake.nftIndex, metadata2.lifespan);
-            }
-
-
-            accountStakes.pop();
-            emit Unstaked(msg.sender, currentStake.nftContract, currentStake.nftIndex, totalStakedFor(msg.sender), "");
-        }
-
-        // Already set in updateAccounting
-        // _lastAccountingTimestampSec = now;
-
-        // interactions
-        totalReward= rewardAmount;
-        (userReward, devReward) = computeDevReward(totalReward);
-        if (userReward > 0) {
-            require(enokiToken.transfer(msg.sender, userReward), "EnokiGeyser: transfer to user out of unlocked pool failed");
-        }
-
-        if (devReward > 0) {
-            require(enokiToken.transfer(devRewardAddress, devReward), "EnokiGeyser: transfer to dev out of unlocked pool failed");
-        }
-
-        emit TokensClaimed(msg.sender, rewardAmount, userReward, devReward);
-
-        require(totalStakingShares == 0 || totalStaked() > 0, "EnokiGeyser: Error unstaking. Staking shares exist, but no staking tokens do");
-    }
-
-    function computeNewReward(
-        uint256 currentReward,
-        uint256 strength,
-        uint256 timeStaked
-    ) private view returns (uint256) {
-        uint256 newReward = strength.mul(timeStaked).div(SECONDS_PER_WEEK);
-        return currentReward.add(newReward);
-    }
-
-    /**
-     * @dev Determines split of specified reward amount between user and dev.
-     * @param totalReward Amount of reward to split.
-     * @return userReward Reward amounts for user and dev.
-     * @return devReward Reward amounts for user and dev.
-     */
-    function computeDevReward(uint256 totalReward) public view returns (uint256 userReward, uint256 devReward) {
-        if (devRewardPercentage == 0) {
-            userReward = totalReward;
-            devReward = 0;
-        } else if (devRewardPercentage == MAX_PERCENTAGE) {
-            userReward = 0;
-            devReward = totalReward;
-        } else {
-            devReward = totalReward.mul(devRewardPercentage).div(MAX_PERCENTAGE);
-            userReward = totalReward.sub(devReward); // Extra dust due to truncated rounding goes to user
-        }
-    }
-
-    /**
-     * @param addr The user to look up staking information for.
-     * @return The number of staking tokens deposited for addr.
-     */
-    function totalStakedFor(address addr) public view returns (uint256) {
-        return _userTotals[addr].userStrengthStaked;
-    }
-
-    /**
-     * @return The total number of deposit tokens staked globally, by all users.
-     */
-    function totalStaked() public view returns (uint256) {
-        return totalStrengthStaked;
-    }
-
-    /**
-     * @return Total number of locked distribution tokens.
-     */
-    function totalLocked() public view returns (uint256) {
-        return enokiToken.balanceOf(address(this));
-    }
-
-    /**
-     * @dev This funcion allows the contract owner to add more locked distribution tokens, along
-     *      with the associated "unlock schedule". These locked tokens immediately begin unlocking
-     *      linearly over the duraction of durationSec timeframe.
-     * @param amount Number of distribution tokens to lock. These are transferred from the caller.
-     * @param durationSec Length of time to linear unlock the tokens.
-     */
-    function lockTokens(uint256 amount, uint256 durationSec) external onlyOwner {
-        require(enokiToken.transferFrom(msg.sender, address(this), amount), "EnokiGeyser: transfer failed");
-        emit TokensLocked(amount, totalLocked());
-    }
-
-    function lockTokensAirdrop(address airdrop, uint256 amount) external onlyAdmin {
-        require(usedAirdropPool.add(amount) <= maxAirdropPool, "Exceeds maximum airdrop tokens");
-        usedAirdropPool = usedAirdropPool.add(amount);
-        
-        require(enokiToken.transfer(address(airdrop), amount), "EnokiGeyser: transfer into airdrop pool failed");
-        
-        emit TokensLockedAirdrop(airdrop, amount, totalLocked());
     }
 }

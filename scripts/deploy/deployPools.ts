@@ -125,7 +125,7 @@ export async function deployPools(
     console.log(colors.title("---Confirming Metadata Resolution Permissions---"));
     await confirmMetadataPermissions(enoki, testmode);
 
-    exportEnokiSystem(enoki);
+    exportEnokiSystem(enoki, 'pools.json');
 
     return {enoki};
 }

@@ -19,7 +19,7 @@ async function main() {
         jsonRpcProvider,
         deployer,
         {testmode: true},
-        'pools2.json'
+        'pools-live.json'
     );
 
     const updated = await deployMushroomStaking(enoki, false);

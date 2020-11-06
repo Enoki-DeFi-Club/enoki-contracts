@@ -35,6 +35,9 @@ export function exportEnokiSystem(enoki: EnokiSystem, file: string) {
         bannedContractLogic: enoki.bannedContractLogic.address,
         bannedContractProxy: enoki.bannedContractProxy.address,
 
+        centralizedRateVoteLogic: enoki.centralizedRateVoteLogic.address,
+        centralizedRateVoteProxy: enoki.centralizedRateVoteProxy.address,
+
         // Enoki Distribution
         enokiGeyserEscrow: enoki.enokiGeyserEscrow.address,
         enokiGeyserProxy: enoki.enokiGeyserProxy.address,

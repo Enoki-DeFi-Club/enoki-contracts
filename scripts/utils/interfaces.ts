@@ -31,6 +31,7 @@ import UniswapV2Router from "../../dependency-artifacts/uniswap/UniswapV2Router0
 import UniswapV2Factory from "../../dependency-artifacts/uniswap/UniswapV2Factory.json";
 
 import MushroomNFT from "../../artifacts/MushroomNFT.json";
+import CentralizedRateVote from "../../artifacts/CentralizedRateVote.json";
 
 export const presaleIface = new utils.Interface(SporePresale.abi);
 export const proxyAdminIface = new utils.Interface(ProxyAdmin.abi);
@@ -48,3 +49,5 @@ export const bannedContractListIface = new utils.Interface(BannedContractList.ab
 export const mushroomNftIface = new utils.Interface(MushroomNFT.abi);
 export const metadataResolverIface = new utils.Interface(MetadataResolver.abi);
 export const mushroomAdapterIface = new utils.Interface(MushroomAdapter.abi);
+
+export const centralizedRateVoteIface = new utils.Interface(CentralizedRateVote.abi);

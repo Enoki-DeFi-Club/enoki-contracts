@@ -42,9 +42,29 @@ export async function deployMushroomStaking(
 ): Promise<{
     enoki: EnokiSystem;
 }> {
-    console.log(colors.title("---Deploy upgraded metadata infrastructure---"));
-    await enoki.deployUpgradedMetadataInfra();
+    // console.log(colors.title("---Deploy upgraded metadata infrastructure---"));
+    // await enoki.deployUpgradedMetadataInfra();
+    // console.log("");
+
+    // console.log(colors.title("---Deploy Centralized Rate Vote---"));
+    // await enoki.deployCentralizedRateVote();
+    // console.log("");
+
+    // console.log(colors.title("---Deploying latest logic upgrades---"));
+    // await enoki.deployLogicUpgrades();
+    // console.log("");
+
+    console.log(colors.title("---Upgrade Farms---"));
+    await enoki.upgradeFarms();
     console.log("");
+
+    console.log(colors.title("---Switch Rate Votes -> Centralized ---"));
+    await enoki.swtichRateVotes();
+    console.log("");
+
+    // console.log(colors.title("---Upgrade Farms---"));
+    // await enoki.upgradeFarms();
+    // console.log("");
 
     // console.log(colors.title("---Initial Enoki Geyser with fresh params---"));
     // await enoki.initializeEnokiGeyser();
@@ -66,12 +86,12 @@ export async function deployMushroomStaking(
         //     "0x482c741b0711624d1f462E56EE5D8f776d5970dC",
         // ]);
 
-        console.log(colors.title("---TEST ONLY: Mushroom Lifespan Mock---"));
-        await enoki.deployMushroomMock();
+        // console.log(colors.title("---TEST ONLY: Mushroom Lifespan Mock---"));
+        // await enoki.deployMushroomMock();
 
-        console.log(colors.title("---TEST ONLY: Upgrade Enoki Geyser---"));
-        await enoki.upgradeEnokiGeyser();
-        console.log("");
+        // console.log(colors.title("---TEST ONLY: Upgrade Enoki Geyser---"));
+        // await enoki.upgradeEnokiGeyser();
+        // console.log("");
 
         // console.log(colors.title("---TEST ONLY: Upgrade Mushroom Nft---"));
         // await enoki.upgradeMushroomNft();
@@ -90,7 +110,7 @@ export async function deployMushroomStaking(
     // await confirmStakingUpgrade(enoki, testmode);
 
     console.log(colors.title("---Export Enoki System to pools.json---"));
-    exportEnokiSystem(enoki, "pools-doom.json");
+    exportEnokiSystem(enoki, "pools-test.json");
 
     return {enoki};
 }

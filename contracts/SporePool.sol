@@ -59,7 +59,6 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
 
     IMiniMe public enokiToken;
     address public enokiDaoAgent;
-    
 
     /* ========== CONSTRUCTOR ========== */
 
@@ -148,6 +147,7 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         emit Withdrawn(msg.sender, amount);
     }
 
+    /// @notice Redeem collected spore for mushrooms. Spore can no longer be withdrawn directly, only redeemed for mushrooms.
     function harvest(uint256 mushroomsToGrow)
         public
         nonReentrant
@@ -160,40 +160,36 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
     {
         uint256 reward = rewards[msg.sender];
 
-        if (reward > 0) {
-            remainingReward = reward;
-            toDev = 0;
-            toDao = 0;
-            rewards[msg.sender] = 0;
+        require(reward > 0, "No harvestable reward");
+        require(mushroomsToGrow > 0, "Must harvest at least one mushroom");
 
-            // Burn some rewards for mushrooms if desired
-            if (mushroomsToGrow > 0) {
-                uint256 totalCost = mushroomFactory.costPerMushroom().mul(mushroomsToGrow);
+        remainingReward = reward;
+        toDev = 0;
+        toDao = 0;
 
-                require(reward >= totalCost, "Not enough rewards to grow the number of mushrooms specified");
+        // Burn some rewards for mushrooms if desired
+        uint256 totalCost = mushroomFactory.costPerMushroom().mul(mushroomsToGrow);
 
-                toDev = totalCost.mul(devRewardPercentage).div(MAX_PERCENTAGE);
+        require(reward >= totalCost, "Not enough rewards to grow the number of mushrooms specified");
 
-                if (toDev > 0) {
-                    mission.sendSpores(devRewardAddress, toDev);
-                    emit DevRewardPaid(devRewardAddress, toDev);
-                }
+        toDev = totalCost.mul(devRewardPercentage).div(MAX_PERCENTAGE);
 
-                toDao = totalCost.sub(toDev);
-
-                mission.sendSpores(enokiDaoAgent, toDao);
-                emit DaoRewardPaid(enokiDaoAgent, toDao);
-
-                remainingReward = reward.sub(totalCost);
-                mushroomFactory.growMushrooms(msg.sender, mushroomsToGrow);
-                emit MushroomsGrown(msg.sender, mushroomsToGrow);
-            }
-
-            if (remainingReward > 0) {
-                mission.sendSpores(msg.sender, remainingReward);
-                emit RewardPaid(msg.sender, remainingReward);
-            }
+        if (toDev > 0) {
+            mission.sendSpores(devRewardAddress, toDev);
+            emit DevRewardPaid(devRewardAddress, toDev);
         }
+
+        toDao = totalCost.sub(toDev);
+
+        mission.sendSpores(enokiDaoAgent, toDao);
+        emit DaoRewardPaid(enokiDaoAgent, toDao);
+
+        remainingReward = reward.sub(totalCost);
+        mushroomFactory.growMushrooms(msg.sender, mushroomsToGrow);
+        emit MushroomsGrown(msg.sender, mushroomsToGrow);
+
+        // Keep any remaining reward in pool
+        rewards[msg.sender] = remainingReward;
     }
 
     // Withdraw, forfietting all rewards

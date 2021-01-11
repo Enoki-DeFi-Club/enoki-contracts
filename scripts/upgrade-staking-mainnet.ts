@@ -5,6 +5,7 @@ import {Configs, WHALES} from "./config/launchConfig";
 import {deployed} from "./deploy/deployed";
 import { deployPools } from "./deploy/deployPools";
 import Web3 from "web3";
+import { deployMushroomStaking } from "./deploy/deployMushroomStaking";
 
 async function main() {
     const jsonRpcProvider = ethers.provider;
@@ -13,23 +14,15 @@ async function main() {
     
     console.log('Deployer: ', await deployer.getAddress());
 
-    const web3 = new Web3("http://localhost:8545");
-
-    await web3.eth.sendTransaction({
-        from: WHALES["ETH"],
-        to: await deployer.getAddress(),
-        value: "100000000000000000000000",
-    });
-
     let enoki = EnokiSystem.fromDeployed(
         Configs.MAINNET,
         jsonRpcProvider,
         deployer,
         {testmode: true},
-        deployed
+        'pools-live.json'
     );
 
-    const updated = await deployPools(enoki, false);
+    const updated = await deployMushroomStaking(enoki, false);
     enoki = updated.enoki;
 }
 

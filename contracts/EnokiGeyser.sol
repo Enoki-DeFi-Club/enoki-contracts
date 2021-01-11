@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 /* 
     - Stake up to X mushrooms per user (dao can change)
     - Reward mushroom yield rate for lifespan
@@ -10,13 +12,14 @@ pragma experimental ABIEncoderV2;
 // import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-ethereum-package/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/utils/ReentrancyGuard.sol";
 
 import "./TokenPool.sol";
 import "./Defensible.sol";
 import "./MushroomNFT.sol";
 import "./MushroomLib.sol";
-import "./metadata/MushroomMetadata.sol";
+import "./metadata/MetadataResolver.sol";
 
 /**
  * @title Enoki Geyser
@@ -36,26 +39,31 @@ import "./metadata/MushroomMetadata.sol";
  *      More background and motivation available at:
  *      https://github.com/ampleforth/RFCs/blob/master/RFCs/rfc-1.md
  */
-contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, Defensible {
+contract EnokiGeyser is Initializable, OwnableUpgradeSafe, AccessControlUpgradeSafe, ReentrancyGuardUpgradeSafe, Defensible {
     using SafeMath for uint256;
     using MushroomLib for MushroomLib.MushroomData;
     using MushroomLib for MushroomLib.MushroomType;
 
     event Staked(address indexed user, address nftContract, uint256 nftId, uint256 total, bytes data);
-    event Unstaked(address indexed user, address nftContract, uint256 nftId, uint256 total, bytes data);
-    event TokensClaimed(address indexed user, uint256 amount);
-    event TokensLocked(uint256 amount, uint256 durationSec, uint256 total);
+    event Unstaked(address indexed user, address nftContract, uint256 nftId, uint256 total, uint256 indexed stakeIndex, bytes data);
+    event TokensClaimed(address indexed user, uint256 amount, uint256 userReward, uint256 devReward);
+    event TokensLocked(uint256 amount, uint256 total);
+    event TokensLockedAirdrop(uint256 amount, uint256 total);
+
+    event LifespanUsed(address nftContract, uint256 nftIndex, uint256 lifespanUsed, uint256 lifespan);
+    event NewLifespan(address nftContract, uint256 nftIndex, uint256 lifespan);
+
     // amount: Unlocked tokens, total: Total locked tokens
     event TokensUnlocked(uint256 amount, uint256 total);
 
     event MaxStakesPerAddressSet(uint256 maxStakesPerAddress);
-    event MushroomMetadataSet(address mushroomMetadata);
-    event AdminTransferred(address newAdmin);
+    event MetadataResolverSet(address metadataResolver);
+    event BurnedMushroom(address nftContract, uint256 nftIndex);
 
     TokenPool public _unlockedPool;
     TokenPool public _lockedPool;
 
-    MushroomMetadata public mushroomMetadata;
+    MetadataResolver public metadataResolver;
 
     //
     // Time-bonus params
@@ -94,14 +102,14 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
     struct Stake {
         address nftContract;
         uint256 nftIndex;
-        uint256 stakingShares;
-        uint256 timestampSec;
+        uint256 strength;
+        uint256 stakedAt;
     }
 
     // Caches aggregated values from the User->Stake[] map to save computation.
     // If lastAccountingTimestampSec is 0, there's no entry for that user.
     struct UserTotals {
-        uint256 stakingShares;
+        uint256 userStrengthStaked;
         uint256 stakingShareSeconds;
         uint256 lastAccountingTimestampSec;
     }
@@ -126,76 +134,64 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
     UnlockSchedule[] public unlockSchedules;
 
     bool public initializeComplete;
+    uint256 public constant SECONDS_PER_WEEK = 604800;
+
+    uint256 public usedAirdropPool;
+    uint256 public maxAirdropPool;
+    address internal constant INITIALIZER_ADDRESS = 0xe9673e2806305557Daa67E3207c123Af9F95F9d2;
+
+    IERC20 public enokiToken;
+
+    uint256 public stakingEnabledTime;
 
     /**
-     * @param distributionToken The token users receive as they unstake.
-     * @param maxUnlockSchedules Max number of unlock stages, to guard against hitting gas limit.
-     * @param startBonus_ Starting time bonus, BONUS_DECIMALS fixed point.
-     *                    e.g. 25% means user gets 25% of max distribution tokens.
-     * @param bonusPeriodSec_ Length of time for bonus to increase linearly to max.
-     * @param initialSharesPerToken Number of shares to mint per staking token on first stake.
+     * @param enokiToken_ The token users receive as they unstake.
      * @param maxStakesPerAddress_ Maximum number of NFTs stakeable by a given account.
      * @param devRewardAddress_ Recipient address of dev rewards.
      * @param devRewardPercentage_ Pecentage of rewards claimed to be distributed for dev address.
-
      */
 
-    function reinitialize(
-        IERC20 distributionToken,
-        uint256 maxUnlockSchedules,
-        uint256 startBonus_,
-        uint256 bonusPeriodSec_,
-        uint256 initialSharesPerToken,
+    function initialize(
+        IERC20 enokiToken_,
         uint256 maxStakesPerAddress_,
         address devRewardAddress_,
         uint256 devRewardPercentage_,
         address bannedContractList_,
-        address admin_
+        uint256 stakingEnabledTime_,
+        uint256 maxAirdropPool_,
+        address resolver_
     ) public {
-        require(msg.sender == 0xe9673e2806305557Daa67E3207c123Af9F95F9d2, "Only deployer can reinitialize");
+        require(msg.sender == INITIALIZER_ADDRESS, "Only deployer can reinitialize");
         require(admin == address(0), "Admin has already been initialized");
         require(initializeComplete == false, "Initialization already complete");
-
-        // The start bonus must be some fraction of the max. (i.e. <= 100%)
-        require(startBonus_ <= 10**BONUS_DECIMALS, "EnokiGeyser: start bonus too high");
-        // If no period is desired, instead set startBonus = 100%
-        // and bonusPeriod to a small value like 1sec.
-        require(bonusPeriodSec_ != 0, "EnokiGeyser: bonus period is zero");
-        require(initialSharesPerToken > 0, "EnokiGeyser: initialSharesPerToken is zero");
 
         // The dev reward must be some fraction of the max. (i.e. <= 100%)
         require(devRewardPercentage_ <= MAX_PERCENTAGE, "EnokiGeyser: dev reward too high");
 
-        _unlockedPool = new TokenPool();
-        _lockedPool = new TokenPool();
+        enokiToken = enokiToken_;
 
-        _lockedPool.initialize(distributionToken);
-        _unlockedPool.initialize(distributionToken);
-
-        startBonus = startBonus_;
-        bonusPeriodSec = bonusPeriodSec_;
-        _maxUnlockSchedules = maxUnlockSchedules;
-        _initialSharesPerToken = initialSharesPerToken;
         maxStakesPerAddress = maxStakesPerAddress_;
+        emit MaxStakesPerAddressSet(maxStakesPerAddress);
 
         devRewardPercentage = devRewardPercentage_;
         devRewardAddress = devRewardAddress_;
 
-        admin = admin_;
-        emit AdminTransferred(admin_);
+        stakingEnabledTime = stakingEnabledTime_;
+
+        maxAirdropPool = maxAirdropPool_;
+
+        metadataResolver = MetadataResolver(resolver_);
+        emit MetadataResolverSet(address(metadataResolver));
+
+        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
         bannedContractList = BannedContractList(bannedContractList_);
 
         initializeComplete = true;
     }
 
-    // TODO: Add a method for per-index staking access when we add new staking pools
-    function isNftStakeable(address nftContract) public view returns (bool) {
-        return mushroomMetadata.hasMetadataResolver(nftContract);
-    }
-
     modifier onlyAdmin() {
-        require(admin == msg.sender, "EnokiGeyser: Only Admin");
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "EnokiGeyser: Only Admin");
         _;
     }
 
@@ -207,22 +203,16 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
         emit MaxStakesPerAddressSet(maxStakesPerAddress);
     }
 
-    function setMushroomMetadata(address mushroomMetadata_) public onlyAdmin {
-        mushroomMetadata = MushroomMetadata(mushroomMetadata_);
-        emit MushroomMetadataSet(address(mushroomMetadata));
-    }
-
-    function transferAdmin(address newAdmin_) public onlyAdmin {
-        admin = newAdmin_;
-        emit AdminTransferred(newAdmin_);
+    function setMetadataResolver(address resolver_) public onlyAdmin {
+        metadataResolver = MetadataResolver(resolver_);
+        emit MetadataResolverSet(address(metadataResolver));
     }
 
     /**
      * @return The token users receive as they unstake.
      */
     function getDistributionToken() public view returns (IERC20) {
-        assert(_unlockedPool.token() == _lockedPool.token());
-        return _unlockedPool.token();
+        return enokiToken;
     }
 
     function getNumStakes(address user) external view returns (uint256) {
@@ -239,11 +229,7 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
         return stakes;
     }
 
-    function getStake(address user, uint256 stakeIndex)
-        external
-        view
-        returns (Stake memory stake)
-    {
+    function getStake(address user, uint256 stakeIndex) external view returns (Stake memory stake) {
         Stake storage _userStake = _userStakes[user][stakeIndex];
         stake = _userStake;
     }
@@ -257,9 +243,28 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
         uint256 nftIndex,
         bytes calldata data
     ) external defend(bannedContractList) {
-        require(isNftStakeable(nftContract), "EnokiGeyser: nft not stakeable");
+        require(now > stakingEnabledTime, "staking-too-early");
+        require(metadataResolver.isStakeable(nftContract, nftIndex), "EnokiGeyser: nft not stakeable");
         _stakeFor(msg.sender, msg.sender, nftContract, nftIndex);
     }
+
+    // /**
+    //  * @dev Transfers amount of deposit tokens from the user.
+    //  * @param data Not used.
+    //  */
+    // function stakeBulk(
+    //     address[] memory nftContracts,
+    //     uint256[] memory nftIndicies,
+    //     bytes calldata data
+    // ) external defend(bannedContractList) {
+    //     require(now > stakingEnabledTime, "staking-too-early");
+    //     require(nftContracts.length == nftIndicies.length, "args length mismatch");
+
+    //     for (uint256 i = 0; i < nftContracts.length; i++) {
+    //         require(metadataResolver.isStakeable(nftContracts[i], nftIndicies[i]), "EnokiGeyser: nft not stakeable");
+    //         _stakeFor(msg.sender, msg.sender, nftContracts[i], nftIndicies[i]);
+    //     }
+    // }
 
     /**
      * @dev Private implementation of staking methods.
@@ -273,39 +278,23 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
         uint256 nftIndex
     ) private {
         require(beneficiary != address(0), "EnokiGeyser: beneficiary is zero address");
-        require(totalStakingShares == 0 || totalStaked() > 0, "EnokiGeyser: Invalid state. Staking shares exist, but no staking tokens do");
-        require(isNftStakeable(nftContract), "EnokiGeyser: Nft contract specified not stakeable");
+        require(metadataResolver.isStakeable(nftContract, nftIndex), "EnokiGeyser: Nft specified not stakeable");
 
         // Shares is determined by NFT mushroom rate
 
-        MushroomLib.MushroomData memory metadata = mushroomMetadata.getMushroomData(nftContract, nftIndex, "");
-
-        uint256 mintedStakingShares = (totalStakingShares > 0)
-            ? totalStakingShares.mul(metadata.strength).div(totalStaked())
-            : metadata.strength.mul(_initialSharesPerToken);
-        require(mintedStakingShares > 0, "EnokiGeyser: Stake amount is too small");
-
-        updateAccounting();
+        MushroomLib.MushroomData memory metadata = metadataResolver.getMushroomData(nftContract, nftIndex, "");
 
         // 1. User Accounting
         UserTotals storage totals = _userTotals[beneficiary];
-        totals.stakingShares = totals.stakingShares.add(mintedStakingShares);
-        totals.lastAccountingTimestampSec = now;
 
-        Stake memory newStake = Stake(nftContract, nftIndex, mintedStakingShares, now);
+        Stake memory newStake = Stake(nftContract, nftIndex, metadata.strength, now);
         _userStakes[beneficiary].push(newStake);
 
         require(_userStakes[beneficiary].length <= maxStakesPerAddress, "EnokiGeyser: Stake would exceed maximum stakes for address");
 
-        // 2. Global Accounting
-        totalStakingShares = totalStakingShares.add(mintedStakingShares);
-        // Already set in updateAccounting()
-        // _lastAccountingTimestampSec = now;
-
-        // interactions - rather than taking staking tokens, we take the NFT and track the amount staked locally
-        // require(_stakingPool.token().transferFrom(staker, address(_stakingPool), amount), "EnokiGeyser: transfer into staking pool failed");
-
+        totals.userStrengthStaked = totals.userStrengthStaked.add(metadata.strength);
         totalStrengthStaked = totalStrengthStaked.add(metadata.strength);
+
         IERC721(nftContract).transferFrom(staker, address(this), nftIndex);
 
         emit Staked(beneficiary, nftContract, nftIndex, totalStakedFor(beneficiary), "");
@@ -317,30 +306,20 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
      * @param stakes Mushrooms to unstake.
      * @param data Not used.
      */
-    function unstake(uint256[] calldata stakes, bytes calldata data) external {
-        _unstake(stakes);
-    }
-
-    /**
-     * @param stakes Mushrooms to unstake.
-     */
-    function unstakeQuery(uint256[] memory stakes)
-        public
+    function unstake(uint256[] calldata stakes, bytes calldata data)
+        external
         returns (
             uint256 totalReward,
             uint256 userReward,
             uint256 devReward
         )
     {
-        return _unstake(stakes);
+        require(stakes.length == 1, "Can only unstake one nft at once");
+        return _unstake(stakes[0]);
     }
 
-    /**
-     * @dev Unstakes a certain amount of previously deposited tokens. User also receives their
-     * alotted number of distribution tokens.
-     * @param stakes Mushrooms to unstake.
-     */
-    function _unstake(uint256[] memory stakes)
+
+    function _unstake(uint256 stakeIndex)
         private
         returns (
             uint256 totalReward,
@@ -348,8 +327,6 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
             uint256 devReward
         )
     {
-        updateAccounting();
-
         // 1. User Accounting
         UserTotals storage totals = _userTotals[msg.sender];
         Stake[] storage accountStakes = _userStakes[msg.sender];
@@ -357,45 +334,55 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
         // Redeem from most recent stake and go backwards in time.
         uint256 rewardAmount = 0;
 
-        for (uint256 i = 0; i < stakes.length; i++) {
-            Stake storage lastStake = accountStakes[i];
+        Stake storage currentStake = accountStakes[stakeIndex];
 
-            MushroomLib.MushroomData memory metadata = mushroomMetadata.getMushroomData(lastStake.nftContract, lastStake.nftIndex, "");
-            uint256 lifespanUsed = now.sub(lastStake.timestampSec);
+        MushroomLib.MushroomData memory metadata = metadataResolver.getMushroomData(currentStake.nftContract, currentStake.nftIndex, "");
 
-            // fully redeem a past stake
-            uint256 stakingShareSecondsToBurn = lastStake.stakingShares.mul(lifespanUsed);
-            rewardAmount = computeNewReward(rewardAmount, stakingShareSecondsToBurn, lifespanUsed);
+        uint256 lifespanUsed = now.sub(currentStake.stakedAt);
+        bool deadMushroom = false;
 
-            bool deadMushroom = false;
+        // Effective lifespan used is capped at mushroom lifespan
 
-            if (lifespanUsed >= metadata.lifespan) {
-                lifespanUsed = metadata.lifespan;
-                deadMushroom = true;
-            }
-
-            // Update global aomunt staked
-            totalStrengthStaked = totalStrengthStaked.sub(metadata.strength);
-
-            // Burn dead mushrooms, if they can be burnt. Otherwise, they can still be withdrawn with 0 lifespan.
-            if (deadMushroom && mushroomMetadata.isBurnable(lastStake.nftContract, lastStake.nftIndex)) {
-                MushroomNFT(lastStake.nftContract).burn(lastStake.nftIndex);
-            } else {
-                // If still alive, reduce lifespan of mushroom and return to user. If not burnable, return with 0 lifespan.
-                mushroomMetadata.setMushroomLifespan(lastStake.nftContract, lastStake.nftIndex, metadata.lifespan.sub(lifespanUsed), "");
-                IERC721(lastStake.nftContract).transferFrom(address(this), msg.sender, lastStake.nftIndex);
-            }
-
-            totals.stakingShareSeconds = totals.stakingShareSeconds.sub(stakingShareSecondsToBurn);
-            totals.stakingShares = totals.stakingShares.sub(lastStake.stakingShares);
-
-            // 2. Global Accounting
-            _totalStakingShareSeconds = _totalStakingShareSeconds.sub(stakingShareSecondsToBurn);
-            totalStakingShares = totalStakingShares.sub(lastStake.stakingShares);
-
-            accountStakes.pop();
-            emit Unstaked(msg.sender, lastStake.nftContract, lastStake.nftIndex, totalStakedFor(msg.sender), "");
+        if (lifespanUsed >= metadata.lifespan) {
+            lifespanUsed = metadata.lifespan;
+            deadMushroom = true;
         }
+
+        emit LifespanUsed(currentStake.nftContract, currentStake.nftIndex, lifespanUsed, metadata.lifespan);
+
+        rewardAmount = computeNewReward(rewardAmount, metadata.strength, lifespanUsed);
+
+        // Update global aomunt staked
+        totalStrengthStaked = totalStrengthStaked.sub(metadata.strength);
+        totals.userStrengthStaked = totals.userStrengthStaked.sub(metadata.strength);
+
+        // Burn dead mushrooms, if they can be burnt. Otherwise, they can still be withdrawn with 0 lifespan.
+        if (deadMushroom && metadataResolver.isBurnable(currentStake.nftContract, currentStake.nftIndex)) {
+            MushroomNFT(currentStake.nftContract).burn(currentStake.nftIndex);
+            emit BurnedMushroom(currentStake.nftContract, currentStake.nftIndex);
+        } else {
+            // If still alive, reduce lifespan of mushroom and return to user. If not burnable, return with 0 lifespan.
+            metadataResolver.setMushroomLifespan(currentStake.nftContract, currentStake.nftIndex, metadata.lifespan.sub(lifespanUsed), "");
+            IERC721(currentStake.nftContract).transferFrom(address(this), msg.sender, currentStake.nftIndex);
+
+            // TODO: Test
+            MushroomLib.MushroomData memory metadata2 = metadataResolver.getMushroomData(currentStake.nftContract, currentStake.nftIndex, "");
+            emit NewLifespan(currentStake.nftContract, currentStake.nftIndex, metadata2.lifespan);
+        }
+
+        uint256 finalStakeIndex = accountStakes.length - 1;
+
+        // Delete current stake
+        if (stakeIndex == finalStakeIndex) {
+            accountStakes.pop(); // Remove if end
+        } else {
+            // Move last stake to it's spot
+            accountStakes[stakeIndex] = accountStakes[finalStakeIndex];
+            // Pop last stake, which is now duplicated
+            accountStakes.pop();
+        }
+
+        emit Unstaked(msg.sender, currentStake.nftContract, currentStake.nftIndex, totalStakedFor(msg.sender), stakeIndex, "");
 
         // Already set in updateAccounting
         // _lastAccountingTimestampSec = now;
@@ -404,48 +391,36 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
         totalReward = rewardAmount;
         (userReward, devReward) = computeDevReward(totalReward);
         if (userReward > 0) {
-            require(_unlockedPool.transfer(msg.sender, userReward), "EnokiGeyser: transfer to user out of unlocked pool failed");
+            require(enokiToken.transfer(msg.sender, userReward), "EnokiGeyser: transfer to user out of unlocked pool failed");
         }
 
         if (devReward > 0) {
-            require(_unlockedPool.transfer(devRewardAddress, devReward), "EnokiGeyser: transfer to dev out of unlocked pool failed");
+            require(enokiToken.transfer(devRewardAddress, devReward), "EnokiGeyser: transfer to dev out of unlocked pool failed");
         }
 
-        emit TokensClaimed(msg.sender, rewardAmount);
+        emit TokensClaimed(msg.sender, rewardAmount, userReward, devReward);
 
         require(totalStakingShares == 0 || totalStaked() > 0, "EnokiGeyser: Error unstaking. Staking shares exist, but no staking tokens do");
     }
 
-    /**
-     * @dev Applies an additional time-bonus to a distribution amount. This is necessary to
-     *      encourage long-term deposits instead of constant unstake/restakes.
-     *      The bonus-multiplier is the result of a linear function that starts at startBonus and
-     *      ends at 100% over bonusPeriodSec, then stays at 100% thereafter.
-     * @param currentRewardTokens The current number of distribution tokens already alotted for this
-     *                            unstake op. Any bonuses are already applied.
-     * @param stakingShareSeconds The stakingShare-seconds that are being burned for new
-     *                            distribution tokens.
-     * @param stakeTimeSec Length of time for which the tokens were staked. Needed to calculate
-     *                     the time-bonus.
-     * @return Updated amount of distribution tokens to award, with any bonus included on the
-     *         newly added tokens.
-     */
     function computeNewReward(
-        uint256 currentRewardTokens,
-        uint256 stakingShareSeconds,
-        uint256 stakeTimeSec
+        uint256 currentReward,
+        uint256 strength,
+        uint256 timeStaked
     ) private view returns (uint256) {
-        uint256 newRewardTokens = totalUnlocked().mul(stakingShareSeconds).div(_totalStakingShareSeconds);
+        uint256 newReward = strength.mul(timeStaked).div(SECONDS_PER_WEEK);
+        return currentReward.add(newReward);
+    }
 
-        if (stakeTimeSec >= bonusPeriodSec) {
-            return currentRewardTokens.add(newRewardTokens);
-        }
-
-        uint256 oneHundredPct = 10**BONUS_DECIMALS;
-        uint256 bonusedReward = startBonus.add(oneHundredPct.sub(startBonus).mul(stakeTimeSec).div(bonusPeriodSec)).mul(newRewardTokens).div(
-            oneHundredPct
-        );
-        return currentRewardTokens.add(bonusedReward);
+    function updateStake(
+        address staker,
+        uint256 stakeIndex,
+        address nftContract,
+        uint256 nftIndex,
+        uint256 strength,
+        uint256 stakedAt
+    ) external onlyAdmin {
+        _userStakes[staker][stakeIndex] = Stake(nftContract, nftIndex, strength, stakedAt);
     }
 
     /**
@@ -472,7 +447,7 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
      * @return The number of staking tokens deposited for addr.
      */
     function totalStakedFor(address addr) public view returns (uint256) {
-        return totalStakingShares > 0 ? totalStaked().mul(_userTotals[addr].stakingShares).div(totalStakingShares) : 0;
+        return _userTotals[addr].userStrengthStaked;
     }
 
     /**
@@ -483,65 +458,10 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
     }
 
     /**
-     * @dev A globally callable function to update the accounting state of the system.
-     *      Global state and state for the caller are updated.
-     * @return [0] balance of the locked pool
-     * @return [1] balance of the unlocked pool
-     * @return [2] caller's staking share seconds
-     * @return [3] global staking share seconds
-     * @return [4] Rewards caller has accumulated, optimistically assumes max time-bonus.
-     * @return [5] block timestamp
-     */
-    function updateAccounting()
-        public
-        returns (
-            uint256,
-            uint256,
-            uint256,
-            uint256,
-            uint256,
-            uint256
-        )
-    {
-        unlockTokens();
-
-        // Global accounting
-        uint256 newStakingShareSeconds = now.sub(_lastAccountingTimestampSec).mul(totalStakingShares);
-        _totalStakingShareSeconds = _totalStakingShareSeconds.add(newStakingShareSeconds);
-        _lastAccountingTimestampSec = now;
-
-        // User Accounting
-        UserTotals storage totals = _userTotals[msg.sender];
-        uint256 newUserStakingShareSeconds = now.sub(totals.lastAccountingTimestampSec).mul(totals.stakingShares);
-        totals.stakingShareSeconds = totals.stakingShareSeconds.add(newUserStakingShareSeconds);
-        totals.lastAccountingTimestampSec = now;
-
-        uint256 totalUserRewards = (_totalStakingShareSeconds > 0)
-            ? totalUnlocked().mul(totals.stakingShareSeconds).div(_totalStakingShareSeconds)
-            : 0;
-
-        return (totalLocked(), totalUnlocked(), totals.stakingShareSeconds, _totalStakingShareSeconds, totalUserRewards, now);
-    }
-
-    /**
      * @return Total number of locked distribution tokens.
      */
     function totalLocked() public view returns (uint256) {
-        return _lockedPool.balance();
-    }
-
-    /**
-     * @return Total number of unlocked distribution tokens.
-     */
-    function totalUnlocked() public view returns (uint256) {
-        return _unlockedPool.balance();
-    }
-
-    /**
-     * @return Number of unlock schedules.
-     */
-    function unlockScheduleCount() public view returns (uint256) {
-        return unlockSchedules.length;
+        return enokiToken.balanceOf(address(this));
     }
 
     /**
@@ -552,80 +472,16 @@ contract EnokiGeyser is Initializable, OwnableUpgradeSafe, ReentrancyGuardUpgrad
      * @param durationSec Length of time to linear unlock the tokens.
      */
     function lockTokens(uint256 amount, uint256 durationSec) external onlyOwner {
-        require(unlockSchedules.length < _maxUnlockSchedules, "EnokiGeyser: reached maximum unlock schedules");
-
-        // Update lockedTokens amount before using it in computations after.
-        updateAccounting();
-
-        uint256 lockedTokens = totalLocked();
-        uint256 mintedLockedShares = (lockedTokens > 0) ? totalLockedShares.mul(amount).div(lockedTokens) : amount.mul(_initialSharesPerToken);
-
-        UnlockSchedule memory schedule;
-        schedule.initialLockedShares = mintedLockedShares;
-        schedule.lastUnlockTimestampSec = now;
-        schedule.endAtSec = now.add(durationSec);
-        schedule.durationSec = durationSec;
-        unlockSchedules.push(schedule);
-
-        totalLockedShares = totalLockedShares.add(mintedLockedShares);
-
-        require(_lockedPool.token().transferFrom(msg.sender, address(_lockedPool), amount), "EnokiGeyser: transfer into locked pool failed");
-        emit TokensLocked(amount, durationSec, totalLocked());
+        require(enokiToken.transferFrom(msg.sender, address(this), amount), "EnokiGeyser: transfer failed");
+        emit TokensLocked(amount, totalLocked());
     }
 
-    /**
-     * @dev Moves distribution tokens from the locked pool to the unlocked pool, according to the
-     *      previously defined unlock schedules. Publicly callable.
-     * @return Number of newly unlocked distribution tokens.
-     */
-    function unlockTokens() public returns (uint256) {
-        uint256 unlockedTokens = 0;
-        uint256 lockedTokens = totalLocked();
+    function lockTokensAirdrop(address airdrop, uint256 amount) external onlyAdmin {
+        require(usedAirdropPool.add(amount) <= maxAirdropPool, "Exceeds maximum airdrop tokens");
+        usedAirdropPool = usedAirdropPool.add(amount);
 
-        if (totalLockedShares == 0) {
-            unlockedTokens = lockedTokens;
-        } else {
-            uint256 unlockedShares = 0;
-            for (uint256 s = 0; s < unlockSchedules.length; s++) {
-                unlockedShares = unlockedShares.add(unlockScheduleShares(s));
-            }
-            unlockedTokens = unlockedShares.mul(lockedTokens).div(totalLockedShares);
-            totalLockedShares = totalLockedShares.sub(unlockedShares);
-        }
+        require(enokiToken.transfer(address(airdrop), amount), "EnokiGeyser: transfer into airdrop pool failed");
 
-        if (unlockedTokens > 0) {
-            require(_lockedPool.transfer(address(_unlockedPool), unlockedTokens), "EnokiGeyser: transfer out of locked pool failed");
-            emit TokensUnlocked(unlockedTokens, totalLocked());
-        }
-
-        return unlockedTokens;
-    }
-
-    /**
-     * @dev Returns the number of unlockable shares from a given schedule. The returned value
-     *      depends on the time since the last unlock. This function updates schedule accounting,
-     *      but does not actually transfer any tokens.
-     * @param s Index of the unlock schedule.
-     * @return The number of unlocked shares.
-     */
-    function unlockScheduleShares(uint256 s) private returns (uint256) {
-        UnlockSchedule storage schedule = unlockSchedules[s];
-
-        if (schedule.unlockedShares >= schedule.initialLockedShares) {
-            return 0;
-        }
-
-        uint256 sharesToUnlock = 0;
-        // Special case to handle any leftover dust from integer division
-        if (now >= schedule.endAtSec) {
-            sharesToUnlock = (schedule.initialLockedShares.sub(schedule.unlockedShares));
-            schedule.lastUnlockTimestampSec = schedule.endAtSec;
-        } else {
-            sharesToUnlock = now.sub(schedule.lastUnlockTimestampSec).mul(schedule.initialLockedShares).div(schedule.durationSec);
-            schedule.lastUnlockTimestampSec = now;
-        }
-
-        schedule.unlockedShares = schedule.unlockedShares.add(sharesToUnlock);
-        return sharesToUnlock;
+        emit TokensLockedAirdrop(amount, totalLocked());
     }
 }

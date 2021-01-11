@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.6.0;
 
 import "@openzeppelin/contracts-ethereum-package/contracts/access/Ownable.sol";
@@ -13,11 +15,11 @@ contract BannedContractList is Initializable, OwnableUpgradeSafe {
         __Ownable_init();
     }
 
-    function isApproved(address toCheck) external returns (bool) {
+    function isApproved(address toCheck) external view returns (bool) {
         return !banned[toCheck];
     }
 
-    function isBanned(address toCheck) external returns (bool) {
+    function isBanned(address toCheck) external view returns (bool) {
         return banned[toCheck];
     }
 

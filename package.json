@@ -27,10 +27,12 @@
         "run-testnet": "sh ./run-testnet.sh",
         "deploy-testnet": "npx buidler run scripts/deploy-testnet.ts --show-stack-traces --no-compile --network ganache",
         "deploy-mainnet": "npx buidler run scripts/deploy-mainnet.ts --no-compile --network mainnet",
-        "deploy-pools-testnet": "npx buidler run scripts/deploy-pools-testnet.ts --show-stack-traces --no-compile --network ganache",
+        "deploy-pools-testnet": "npx buidler run scripts/deploy-pools-testnet.ts --show-stack-traces --network ganache",
         "deploy-pools-forknet": "npx buidler run scripts/deploy-pools-testnet.ts --show-stack-traces --no-compile --network forknet",
-        "deploy-pools-mainnet": "npx buidler run scripts/deploy-pools-mainnet.ts --no-compile --network mainnet"
-
+        "deploy-pools-mainnet": "npx buidler run scripts/deploy-pools-mainnet.ts --no-compile --network ganache",
+        "upgrade-staking-testnet": "npx buidler run scripts/upgrade-staking-testnet.ts --network ganache",
+        "generate-upgrade-calls": "npx buidler run scripts/generate-upgrade-calls.ts --network mainnet",
+        "upgrade-staking-mainnet": "npx buidler run scripts/upgrade-staking-mainnet.ts --no-compile --network mainnet"
     },
     "dependencies": {
         "@nomiclabs/buidler-etherscan": "^2.1.0",

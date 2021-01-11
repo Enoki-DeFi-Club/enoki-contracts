@@ -5,6 +5,7 @@ import {Configs, WHALES} from "./config/launchConfig";
 import {deployed} from "./deploy/deployed";
 import { deployPools } from "./deploy/deployPools";
 import Web3 from "web3";
+import { deployMushroomStaking } from "./deploy/deployMushroomStaking";
 
 async function main() {
     const jsonRpcProvider = ethers.provider;
@@ -26,10 +27,10 @@ async function main() {
         jsonRpcProvider,
         deployer,
         {testmode: true},
-        deployed
+        'pools.json'
     );
 
-    const updated = await deployPools(enoki, false);
+    const updated = await deployMushroomStaking(enoki, true);
     enoki = updated.enoki;
 }
 

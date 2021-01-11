@@ -31,14 +31,15 @@ import PaymentSplitter from "../../artifacts/PaymentSplitter.json";
 import SporePool from "../../artifacts/SporePool.json";
 import MushroomFactory from "../../artifacts/MushroomFactory.json";
 import MushroomNFT from "../../artifacts/MushroomNFT.json";
+import RateVote from "../../artifacts/RateVote.json";
 
 import Agent from "../../dependency-artifacts/aragon/Agent.json";
 import MiniMeToken from "../../dependency-artifacts/aragon/MiniMeToken.json";
 
 import EnokiGeyser from "../../artifacts/EnokiGeyser.json";
 import Mission from "../../artifacts/Mission.json";
-import MushroomMetadata from "../../artifacts/MushroomMetadata.json";
-import MushroomResolver from "../../artifacts/MushroomResolver.json";
+import MetadataResolver from "../../artifacts/MetadataResolver.json";
+import MushroomAdapter from "../../artifacts/MushroomAdapter.json";
 
 import ProxyAdmin from "../../dependency-artifacts/open-zeppelin-upgrades/ProxyAdmin.json";
 import AdminUpgradeabilityProxy from "../../dependency-artifacts/open-zeppelin-upgrades/AdminUpgradeabilityProxy.json";
@@ -46,10 +47,13 @@ import AdminUpgradeabilityProxy from "../../dependency-artifacts/open-zeppelin-u
 import UniswapV2Pair from "../../dependency-artifacts/uniswap/UniswapV2Pair.json";
 import UniswapV2Router from "../../dependency-artifacts/uniswap/UniswapV2Router02.json";
 import UniswapV2Factory from "../../dependency-artifacts/uniswap/UniswapV2Factory.json";
+import MushroomLifespanMock from "../../artifacts/MushroomLifespanMock.json";
+import CentralizedRateVote from "../../artifacts/CentralizedRateVote.json";
 
 import whitelist from "../config/whitelist";
 
 import {colors, LaunchFlags} from "../deploy/deployCore";
+const fs = require("fs");
 import {Multisig} from "../deploy/Multisig";
 const Web3 = require("web3");
 import dotenv from "dotenv";
@@ -60,7 +64,13 @@ dotenv.config();
 export const LIFESPAN_MODIFIER_ROLE = utils.keccak256(
     utils.toUtf8Bytes("LIFESPAN_MODIFIER_ROLE")
 );
+export const LIFESPAN_MODIFY_REQUEST_ROLE = utils.keccak256(
+    utils.toUtf8Bytes("LIFESPAN_MODIFY_REQUEST_ROLE")
+);
 export const MINTER_ROLE = utils.keccak256(utils.toUtf8Bytes("MINTER_ROLE"));
+export const DEFAULT_ADMIN_ROLE = utils.keccak256(
+    utils.toUtf8Bytes("DEFAULT_ADMIN_ROLE")
+);
 
 import {
     sporePoolIface,
@@ -68,10 +78,12 @@ import {
     proxyAdminIface,
     bannedContractListIface,
     mushroomNftIface,
-    mushroomMetadataIface,
-    mushroomResolverIface,
+    metadataResolverIface,
+    mushroomAdapterIface,
     missionIface,
     geyserEscrowIface,
+    rateVoteIFace,
+    centralizedRateVoteIface,
 } from "../utils/interfaces";
 import {BN, ETH} from "../utils/shorthand";
 
@@ -85,6 +97,7 @@ export interface SporePoolEntry {
     assetAddress: string;
     sporePool: Contract;
     mushroomFactory: Contract;
+    rateVote: Contract;
 }
 
 export class EnokiSystem {
@@ -102,20 +115,22 @@ export class EnokiSystem {
     sporePoolLogic!: Contract;
     sporePoolEthLogic!: Contract;
     mushroomFactoryLogic!: Contract;
+    rateVoteLogic!: Contract;
 
     mushroomNftLogic!: Contract;
     mushroomNftProxy!: Contract;
 
-    mushroomMetadataLogic!: Contract;
-    mushroomMetadataProxy!: Contract;
+    metadataResolverLogic!: Contract;
+    metadataResolverProxy!: Contract;
 
-    mushroomResolverLogic!: Contract;
-    mushroomResolverProxy!: Contract;
+    mushroomAdapterLogic!: Contract;
+    mushroomAdapterProxy!: Contract;
+
+    centralizedRateVoteLogic!: Contract;
+    centralizedRateVoteProxy!: Contract;
 
     bannedContractLogic!: Contract;
     bannedContractProxy!: Contract;
-
-    bannedContractList!: Contract;
 
     missionPools!: SporePoolEntry[];
 
@@ -169,7 +184,7 @@ export class EnokiSystem {
         this.web3 = new Web3("http://localhost:8545");
         // this.web3 = new Web3(process.env.FORKNET_NODE_URL);
         this.flags = flags;
-        this.fastGasPrice = utils.parseUnits("100", "gwei");
+        this.fastGasPrice = utils.parseUnits("92", "gwei");
         console.log(`Fast Gas Price: ${this.fastGasPrice.toString()}`);
         this.overrides = {
             gasPrice: this.fastGasPrice,
@@ -181,16 +196,22 @@ export class EnokiSystem {
         provider: providers.Provider,
         deployer: Signer,
         flags: LaunchFlags,
-        deployed: EnokiAddresses
+        file: string
     ): EnokiSystem {
         const enoki = new EnokiSystem(config, provider, deployer, flags);
+
+        const rawdata = fs.readFileSync(file);
+        const deployed = JSON.parse(rawdata);
+
         enoki.sporeToken = new Contract(deployed.sporeToken, SporeToken.abi, deployer);
         enoki.presale = new Contract(deployed.presale, SporePresale.abi, deployer);
+
         enoki.missionsProxy = new Contract(
             deployed.missionsProxy,
             Mission.abi,
             deployer
         );
+
         enoki.missionsLogic = new Contract(
             deployed.missionsLogic,
             Mission.abi,
@@ -201,11 +222,41 @@ export class EnokiSystem {
             TokenVesting.abi,
             deployer
         );
-        enoki.bannedContractList = new Contract(
-            deployed.bannedContractList,
+
+        enoki.bannedContractProxy = new Contract(
+            deployed.bannedContractProxy,
             BannedContractList.abi,
             deployer
         );
+        enoki.bannedContractLogic = new Contract(
+            deployed.bannedContractLogic,
+            BannedContractList.abi,
+            deployer
+        );
+
+        enoki.sporePoolLogic = new Contract(
+            deployed.sporePoolLogic,
+            SporePool.abi,
+            deployer
+        );
+        enoki.sporePoolEthLogic = new Contract(
+            deployed.sporePoolEthLogic,
+            SporePoolEth.abi,
+            deployer
+        );
+
+        enoki.mushroomFactoryLogic = new Contract(
+            deployed.mushroomFactoryLogic,
+            MushroomFactory.abi,
+            deployer
+        );
+
+        enoki.rateVoteLogic = new Contract(
+            deployed.rateVoteLogic,
+            RateVote.abi,
+            deployer
+        );
+
         enoki.enokiGeyserEscrow = new Contract(
             deployed.enokiGeyserEscrow,
             GeyserEscrow.abi,
@@ -221,8 +272,10 @@ export class EnokiSystem {
             EnokiGeyser.abi,
             deployer
         );
+
         enoki.enokiToken = new Contract(deployed.enokiToken, MiniMeToken.abi, deployer);
         enoki.enokiDaoAgent = new Contract(deployed.enokiDaoAgent, Agent.abi, deployer);
+
         enoki.devFundPaymentSplitter = new Contract(
             deployed.devFundPaymentSplitter,
             PaymentSplitter.abi,
@@ -233,6 +286,7 @@ export class EnokiSystem {
             EthVesting.abi,
             deployer
         );
+
         enoki.devMultisig = Multisig.fromAddress(
             enoki.web3,
             provider,
@@ -242,6 +296,66 @@ export class EnokiSystem {
             flags.testmode
         );
         enoki.proxyAdmin = new Contract(deployed.proxyAdmin, ProxyAdmin.abi, deployer);
+
+        enoki.mushroomNftProxy = new Contract(
+            deployed.mushroomNftProxy,
+            MushroomNFT.abi,
+            deployer
+        );
+        enoki.mushroomNftLogic = new Contract(
+            deployed.mushroomNftLogic,
+            MushroomNFT.abi,
+            deployer
+        );
+
+        enoki.metadataResolverProxy = new Contract(
+            deployed.metadataResolverProxy,
+            MetadataResolver.abi,
+            deployer
+        );
+        enoki.metadataResolverLogic = new Contract(
+            deployed.metadataResolverLogic,
+            MetadataResolver.abi,
+            deployer
+        );
+
+        enoki.mushroomAdapterProxy = new Contract(
+            deployed.mushroomAdapterProxy,
+            MushroomAdapter.abi,
+            deployer
+        );
+        enoki.mushroomAdapterLogic = new Contract(
+            deployed.mushroomAdapterLogic,
+            MushroomAdapter.abi,
+            deployer
+        );
+
+        enoki.centralizedRateVoteLogic = new Contract(
+            deployed.centralizedRateVoteLogic,
+            CentralizedRateVote.abi,
+            deployer
+        );
+        enoki.centralizedRateVoteProxy = new Contract(
+            deployed.centralizedRateVoteProxy,
+            CentralizedRateVote.abi,
+            deployer
+        );
+
+        enoki.missionPools = [];
+
+        for (const pool of deployed.missionPools) {
+            enoki.missionPools.push({
+                assetAddress: pool.assetAddress,
+                assetName: pool.assetName,
+                sporePool: new Contract(pool.sporePool, SporePool.abi, deployer),
+                mushroomFactory: new Contract(
+                    pool.mushroomFactory,
+                    MushroomFactory.abi,
+                    deployer
+                ),
+                rateVote: new Contract(pool.rateVote, RateVote.abi, deployer),
+            });
+        }
 
         return enoki;
     }
@@ -302,6 +416,21 @@ export class EnokiSystem {
         `);
     }
 
+    async deployCentralizedRateVote() {
+        const {logic, proxy} = await this.deployLogicAndProxy(
+            CentralizedRateVote,
+            centralizedRateVoteIface.encodeFunctionData("initialize")
+        );
+
+        this.centralizedRateVoteProxy = proxy;
+        this.centralizedRateVoteLogic = logic;
+
+        console.log(`Deployed Centralized Rate Vote
+            centralizedRateVoteProxy: ${this.centralizedRateVoteProxy.address}
+            centralizedRateVoteLogic: ${this.centralizedRateVoteLogic.address}
+        `);
+    }
+
     async deploySporeToken() {
         const {config, deployer} = this;
         this.sporeToken = await deployContract(
@@ -343,7 +472,6 @@ export class EnokiSystem {
         // Transfer from whale to the recipients (special for ETH)
 
         for (const poolConfig of config.pools) {
-
             // Only some assets have whales defined
             if (!WHALES[poolConfig.assetName]) {
                 continue;
@@ -358,7 +486,7 @@ export class EnokiSystem {
                 });
             }
 
-            console.log(poolConfig.assetName)
+            console.log(poolConfig.assetName);
             if (poolConfig.assetName === "ETH") {
                 for (const recipient of recipients) {
                     const amount = WHALE_AMOUNT["ETH"].div(recipients.length);
@@ -369,9 +497,9 @@ export class EnokiSystem {
                     });
 
                     console.log(
-                        `Distributed ${utils.formatEther(
-                            amount
-                        )} test ${poolConfig.assetName} to ${recipient}`
+                        `Distributed ${utils.formatEther(amount)} test ${
+                            poolConfig.assetName
+                        } to ${recipient}`
                     );
                 }
             } else {
@@ -380,23 +508,115 @@ export class EnokiSystem {
                     poolConfig.assetAddress
                 );
 
-                const whaleBalance = await token.methods.balanceOf(WHALES[poolConfig.assetName]);
-                console.log('whaleBalance', whaleBalance.toString());
-                
+                const whaleBalance = await token.methods.balanceOf(
+                    WHALES[poolConfig.assetName]
+                );
+                console.log("whaleBalance", whaleBalance.toString());
+
                 for (const recipient of recipients) {
-                    const amount = WHALE_AMOUNT[poolConfig.assetName].div(recipients.length);
+                    const amount = WHALE_AMOUNT[poolConfig.assetName].div(
+                        recipients.length
+                    );
                     await token.methods
                         .transfer(recipient, amount.toString())
                         .send({from: WHALES[poolConfig.assetName]});
 
                     console.log(
-                        `Distributed ${utils.formatEther(
-                            amount
-                        )} test ${poolConfig.assetName} to ${recipient}`
+                        `Distributed ${utils.formatEther(amount)} test ${
+                            poolConfig.assetName
+                        } to ${recipient}`
                     );
                 }
             }
         }
+    }
+
+    async deployMushroomMock() {
+        const {config, deployer} = this;
+
+        const mock = await deployContract(
+            deployer,
+            MushroomLifespanMock,
+            undefined,
+            this.overrides
+        );
+
+        console.log(`Grant minting role to deployMushroomMock...
+            ${mock.address}`);
+
+        console.log(await this.mushroomNftProxy.owner());
+
+        await (await this.mushroomNftProxy.grantRole(MINTER_ROLE, mock.address)).wait();
+
+        await (
+            await this.mushroomNftProxy.grantRole(LIFESPAN_MODIFIER_ROLE, mock.address)
+        ).wait();
+
+        const res1 = await this.devMultisig.execDirectly(
+            {
+                to: this.mushroomNftProxy.address,
+                data: mushroomNftIface.encodeFunctionData("grantRole", [
+                    MINTER_ROLE,
+                    mock.address,
+                ]),
+            },
+            deployer
+        );
+
+        console.log(res1);
+
+        // expect(res1).to.be.equal('ExecutionSuccess');
+
+        const res2 = await this.devMultisig.execDirectly(
+            {
+                to: this.mushroomNftProxy.address,
+                data: mushroomNftIface.encodeFunctionData("grantRole", [
+                    LIFESPAN_MODIFIER_ROLE,
+                    mock.address,
+                ]),
+            },
+            deployer
+        );
+
+        console.log(res2);
+
+        // expect(res2).to.be.equal('ExecutionSuccess');
+
+        console.log("Granted minting role to deployMushroomMock...");
+
+        console.log((await this.provider.getBalance(this.deployerAddress)).toString());
+
+        await this.devMultisig.execDirectly(
+            {
+                to: this.mushroomNftProxy.address,
+                data: mushroomNftIface.encodeFunctionData("grantRole", [
+                    LIFESPAN_MODIFIER_ROLE,
+                    await deployer.getAddress(),
+                ]),
+            },
+            deployer
+        );
+    }
+
+    async transferEnokiGeyserAdmin() {
+        const {config, deployer} = this;
+
+        console.log("Transfer Geyser to Multisig...");
+        await (
+            await this.enokiGeyserProxy.grantRole(
+                DEFAULT_ADMIN_ROLE,
+                this.devMultisig.ethersContract.address,
+                this.overrides
+            )
+        ).wait();
+
+        await (
+            await this.enokiGeyserProxy.renounceRole(
+                DEFAULT_ADMIN_ROLE,
+                await this.deployer.getAddress(),
+                this.overrides
+            )
+        ).wait();
     }
 
     async sendEnokiToGeyser() {
@@ -406,7 +626,7 @@ export class EnokiSystem {
             {
                 to: this.enokiGeyserEscrow.address,
                 data: geyserEscrowIface.encodeFunctionData("lockTokens", [
-                    ETH("1000"),
+                    ETH("12600"),
                     daysToSeconds(60),
                 ]),
             },
@@ -414,6 +634,7 @@ export class EnokiSystem {
         );
 
         console.log(result);
+        console.log("Enoki Sent to Geyser!");
     }
 
     async lockEnokiInGeyserEscrow() {
@@ -541,7 +762,7 @@ export class EnokiSystem {
             config.geyserParams.maxStakesPerAddress,
             this.devMultisig.ethersContract.address,
             config.geyserParams.devRewardPercentage,
-            this.bannedContractList.address,
+            this.bannedContractProxy.address,
             this.devMultisig.ethersContract.address,
         ]);
 
@@ -597,7 +818,12 @@ export class EnokiSystem {
         initParams: string
     ): Promise<{logic: Contract; proxy: Contract}> {
         const {deployer} = this;
-        const logic = await deployContract(deployer, Artifact);
+        const logic = await deployContract(
+            deployer,
+            Artifact,
+            undefined,
+            this.overrides
+        );
         const proxy = await deployContract(
             deployer,
             AdminUpgradeabilityProxy,
@@ -616,7 +842,7 @@ export class EnokiSystem {
     async deployMushroomNft() {
         const {logic, proxy} = await this.deployLogicAndProxy(
             MushroomNFT,
-            bannedContractListIface.encodeFunctionData("initialize")
+            mushroomNftIface.encodeFunctionData("initialize")
         );
 
         this.mushroomNftProxy = proxy;
@@ -634,7 +860,7 @@ export class EnokiSystem {
 
     /*
         - Add all initial species to Mushroom NFT
-        - Set MushroomMetadata on Geyser
+        - Set MetadataResolver on Geyser
         - Lifespan permissions to EnokiGeyser
         - Minting & lifespan permissions to all MushroomFactories
     */
@@ -647,7 +873,8 @@ export class EnokiSystem {
             await (
                 await this.mushroomNftProxy.grantRole(
                     LIFESPAN_MODIFIER_ROLE,
-                    pool.mushroomFactory.address
+                    pool.mushroomFactory.address,
+                    this.overrides
                 )
             ).wait();
 
@@ -659,7 +886,8 @@ export class EnokiSystem {
             await (
                 await this.mushroomNftProxy.grantRole(
                     MINTER_ROLE,
-                    pool.mushroomFactory.address
+                    pool.mushroomFactory.address,
+                    this.overrides
                 )
             ).wait();
 
@@ -672,35 +900,69 @@ export class EnokiSystem {
         await (
             await this.mushroomNftProxy.grantRole(
                 LIFESPAN_MODIFIER_ROLE,
-                this.enokiGeyserProxy.address
+                this.mushroomAdapterProxy.address,
+                this.overrides
             )
         ).wait();
 
-        console.log(`Granted LIFESPAN_MODIFIER_ROLE to EnokiGeyser: 
-            ${this.enokiGeyserProxy.address}
+        console.log(`Granted LIFESPAN_MODIFIER_ROLE to MushroomAdapter:
+            ${this.mushroomAdapterProxy.address}
         `);
 
+        // console.log(`Allow EnokiGeyser to set lifespans via MetadataResolver...`);
+        // await (
+        //     await this.metadataResolverProxy.grantRole(
+        //         LIFESPAN_MODIFY_REQUEST_ROLE,
+        //         this.enokiGeyserProxy.address
+        //     )
+        // ).wait();
+
+        // console.log(`Setting MetadataResolver on EnokiGeyser...`);
+        // await (
+        //     await this.enokiGeyserProxy.setmetadataResolver(
+        //         this.metadataResolverProxy.address
+        //     )
+        // ).wait();
+
+        console.log(`Setting MetadataResolver resolver for MushroomNFT...`);
         await (
-            await this.mushroomNftProxy.grantRole(
-                LIFESPAN_MODIFIER_ROLE,
-                this.mushroomResolverProxy.address
+            await this.metadataResolverProxy.setResolver(
+                this.mushroomNftProxy.address,
+                this.mushroomAdapterProxy.address,
+                this.overrides
             )
         ).wait();
+    }
 
-        console.log(`Granted LIFESPAN_MODIFIER_ROLE to MushroomResolver: 
-            ${this.mushroomResolverProxy.address}
-        `);
+    async setupSpecies() {
+        const {config, deployer} = this;
 
         for (const species of config.species) {
+            console.log("   Setting Species Type");
             await (
-                await this.mushroomNftProxy.setMushroomType(species.speciesId, [
+                await this.mushroomNftProxy.setMushroomType(
                     species.speciesId,
-                    species.strength,
-                    species.minLifespan,
-                    species.maxLifespan,
-                    BN(0),
-                    species.cap,
-                ])
+                    [
+                        species.speciesId,
+                        species.strength,
+                        species.minLifespan,
+                        species.maxLifespan,
+                        BN(0),
+                        species.cap,
+                    ],
+                    this.overrides
+                )
+            ).wait();
+
+            const composedUri = `https://ipfs.infura.io:5001/api/v0/cat/${species.ipfsUri}`;
+
+            console.log("   Setting Species URI");
+            await (
+                await this.mushroomNftProxy.setSpeciesUri(
+                    species.speciesId,
+                    composedUri,
+                    this.overrides
+                )
             ).wait();
 
             console.log(`Added Mushroom Species ${species.speciesName}
@@ -710,98 +972,93 @@ export class EnokiSystem {
                 maxLifespan ${species.maxLifespan.toString()}
                 minted ${BN(0).toString()}
                 cap ${species.cap.toString()}
+                ipfsUri ${species.ipfsUri}
+                finalUrl ${composedUri}
             `);
         }
+    }
 
-        console.log(`Setting MushroomMetadata on EnokiGeyser...`);
+    async managePermissions() {
+        // console.log(`Transferring EnokiGeyser admin rights to Dev Multisig...`);
+        // await (
+        //     await this.enokiGeyserProxy.transferAdmin(
+        //         this.devMultisig.ethersContract.address
+        //     )
+        // ).wait();
+
+        console.log(`Transferring MetadataResolver admin to Dev Multisig...`);
         await (
-            await this.enokiGeyserProxy.setMushroomMetadata(
-                this.mushroomMetadataProxy.address
+            await this.metadataResolverProxy.grantRole(
+                DEFAULT_ADMIN_ROLE,
+                this.devMultisig.ethersContract.address,
+                this.overrides
             )
         ).wait();
 
-        console.log(`Setting MushroomMetadata resolver for MushroomNFT...`);
         await (
-            await this.mushroomMetadataProxy.setResolver(
-                this.mushroomNftProxy.address,
-                this.mushroomResolverProxy.address
-            )
-        ).wait();
-
-        console.log(`Transferring EnokiGeyser admin rights to Dev Multisig...`);
-        await (
-            await this.enokiGeyserProxy.transferAdmin(
-                this.devMultisig.ethersContract.address
-            )
-        ).wait();
-
-        console.log(`Transferring MushroomMetadata ownership to Dev Multisig...`);
-        await (
-            await this.mushroomMetadataProxy.transferOwnership(
-                this.devMultisig.ethersContract.address
-            )
-        ).wait();
-
-        console.log(`Transferring MushroomResolver ownership to Dev Multisig...`);
-        await (
-            await this.mushroomResolverProxy.transferOwnership(
-                this.devMultisig.ethersContract.address
+            await this.metadataResolverProxy.renounceRole(
+                DEFAULT_ADMIN_ROLE,
+                await this.deployer.getAddress(),
+                this.overrides
             )
         ).wait();
 
         console.log(`Transferring MushroomNFT ownership to Dev Multisig...`);
         await (
             await this.mushroomNftProxy.transferOwnership(
-                this.devMultisig.ethersContract.address
+                this.devMultisig.ethersContract.address,
+                this.overrides
             )
         ).wait();
 
         console.log(`Ownership transfers complete`);
     }
 
-    async deployMushroomMetadataInfra() {
-        console.log(`Deploy mushroomMetadata`);
-        const mushroomMetadata = await this.deployLogicAndProxy(
-            MushroomMetadata,
-            mushroomMetadataIface.encodeFunctionData("initialize")
-        );
-
-        this.mushroomMetadataProxy = mushroomMetadata.proxy;
-        this.mushroomMetadataLogic = mushroomMetadata.logic;
-
-        console.log(`Deploy mushroomResolver`);
-        // Native mushroom resolver
-        const mushroomResolver = await this.deployLogicAndProxy(
-            MushroomResolver,
-            mushroomResolverIface.encodeFunctionData("initialize", [
-                this.mushroomNftProxy.address,
-                this.mushroomMetadataProxy.address,
+    async deploymetadataResolverInfra() {
+        console.log(`Deploy metadataResolver`);
+        const metadataResolver = await this.deployLogicAndProxy(
+            MetadataResolver,
+            metadataResolverIface.encodeFunctionData("initialize", [
+                this.enokiGeyserProxy.address,
             ])
         );
 
-        this.mushroomResolverProxy = mushroomResolver.proxy;
-        this.mushroomResolverLogic = mushroomResolver.logic;
+        this.metadataResolverProxy = metadataResolver.proxy;
+        this.metadataResolverLogic = metadataResolver.logic;
+
+        console.log(`Deploy mushroomAdapter`);
+        // Native mushroom resolver
+        const mushroomAdapter = await this.deployLogicAndProxy(
+            MushroomAdapter,
+            mushroomAdapterIface.encodeFunctionData("initialize", [
+                this.mushroomNftProxy.address,
+                this.metadataResolverProxy.address,
+            ])
+        );
+
+        this.mushroomAdapterProxy = mushroomAdapter.proxy;
+        this.mushroomAdapterLogic = mushroomAdapter.logic;
 
         console.log(`Deployed Mushroom Metadata Infra
-            mushroomMetadataProxy: ${this.mushroomMetadataProxy.address}
-            mushroomFactoryLogic: ${this.mushroomMetadataLogic.address}
-            mushroomResolverProxy: ${this.mushroomResolverProxy.address}
-            mushroomResolverLogic: ${this.mushroomResolverLogic.address}
+            metadataResolverProxy: ${this.metadataResolverProxy.address}
+            metadataResolverLogic: ${this.metadataResolverLogic.address}
+            mushroomAdapterProxy: ${this.mushroomAdapterProxy.address}
+            mushroomAdapterLogic: ${this.mushroomAdapterLogic.address}
         `);
 
-        console.log(`Confirm MushroomMetadata impl...`);
+        console.log(`Confirm MetadataResolver impl...`);
         expect(
             await this.proxyAdmin.getProxyImplementation(
-                this.mushroomMetadataProxy.address
+                this.metadataResolverProxy.address
             )
-        ).to.be.equal(this.mushroomMetadataLogic.address);
+        ).to.be.equal(this.metadataResolverLogic.address);
 
-        console.log(`Confirm MushroomResolver impl...`);
+        console.log(`Confirm MushroomAdapter impl...`);
         expect(
             await this.proxyAdmin.getProxyImplementation(
-                this.mushroomResolverProxy.address
+                this.mushroomAdapterProxy.address
             )
-        ).to.be.equal(this.mushroomResolverLogic.address);
+        ).to.be.equal(this.mushroomAdapterLogic.address);
     }
 
     // Deploy Banned contract list, transfer ownership to Dev multisig
@@ -821,7 +1078,8 @@ export class EnokiSystem {
 
         await (
             await this.bannedContractProxy.transferOwnership(
-                this.devMultisig.ethersContract.address
+                this.devMultisig.ethersContract.address,
+                this.overrides
             )
         ).wait();
 
@@ -830,21 +1088,227 @@ export class EnokiSystem {
         `);
     }
 
+    async deployLogicUpgrades() {
+        const {config, deployer} = this;
+
+        this.sporePoolLogic = await deployContract(
+            deployer,
+            SporePool,
+            undefined,
+            this.overrides
+        );
+        console.log(`Deployed new sporePoolLogic
+            ${this.sporePoolLogic.address}
+        `);
+
+        this.sporePoolEthLogic = await deployContract(
+            deployer,
+            SporePoolEth,
+            undefined,
+            this.overrides
+        );
+        console.log(`Deployed new sporePoolEthLogic
+            ${this.sporePoolEthLogic.address}
+        `);
+    }
+
+    async deployUpgradedMetadataInfra() {
+        const {config, deployer} = this;
+
+        // console.log(`Deploying new metadataResolverLogic...`);
+        // this.metadataResolverLogic = await deployContract(
+        //     deployer,
+        //     MetadataResolver,
+        //     undefined,
+        //     this.overrides
+        // );
+
+        // console.log(`Deploying new mushroomAdapterLogic...`);
+        // this.mushroomAdapterLogic = await deployContract(
+        //     deployer,
+        //     MushroomAdapter,
+        //     undefined,
+        //     this.overrides
+        // );
+
+        console.log(`Deploying new enokiGeyserLogic...`);
+        this.enokiGeyserLogic = await deployContract(
+            deployer,
+            EnokiGeyser,
+            undefined,
+            this.overrides
+        );
+
+        console.log(this.enokiGeyserLogic.address);
+
+        // console.log(`Deploying new mushroomNftLogic...`);
+        // this.mushroomNftLogic = await deployContract(
+        //     deployer,
+        //     MushroomNFT,
+        //     undefined,
+        //     this.overrides
+        // );
+    }
+
+    async upgradeMetadataResolver() {
+        const {config, deployer} = this;
+
+        await this.devMultisig.execDirectly(
+            {
+                to: this.proxyAdmin.address,
+                data: proxyAdminIface.encodeFunctionData("upgrade", [
+                    this.metadataResolverProxy.address,
+                    this.metadataResolverLogic.address,
+                ]),
+            },
+            deployer
+        );
+        console.log(`Upgraded metadataResolverProxy ${this.metadataResolverProxy.address}
+            to: ${this.metadataResolverLogic.address}
+        `);
+    }
+
+    async swtichRateVotes() {
+        const {config, deployer} = this;
+        
+        console.log()
+
+        for (const pool of this.missionPools) {
+            const encoded = sporePoolIface.encodeFunctionData("setRateVote", [
+                this.centralizedRateVoteProxy.address,
+            ]);
+
+            await this.devMultisig.execDirectly(
+                {
+                    to: pool.sporePool.address,
+                    data: encoded,
+                },
+                deployer
+            );
+            console.log(`Switched vote rate for ${pool.assetName} 
+                    to: ${this.centralizedRateVoteProxy.address}
+                    encoded: ${encoded}
+            `);
+        }
+    }
+
+    async upgradeFarms() {
+        const {config, deployer} = this;
+
+        for (const pool of this.missionPools) {
+            if (pool.assetName == "ETH") {
+
+                console.log(
+                    pool.sporePool.address,
+                    this.sporePoolEthLogic.address,
+                )
+
+                const encoded = proxyAdminIface.encodeFunctionData("upgrade", [
+                    pool.sporePool.address,
+                    this.sporePoolEthLogic.address,
+                ]);
+                await this.devMultisig.execDirectly(
+                    {
+                        to: this.proxyAdmin.address,
+                        data: encoded,
+                    },
+                    deployer
+                );
+                console.log(`Upgraded Pool logic for ${pool.assetName} 
+                    proxy: ${pool.sporePool.address}
+                    to: ${this.sporePoolEthLogic.address} (ETH Variant)
+                    encoded: ${encoded}
+                `);
+            } else {
+                const encoded = proxyAdminIface.encodeFunctionData("upgrade", [
+                    pool.sporePool.address,
+                    this.sporePoolLogic.address,
+                ]);
+                await this.devMultisig.execDirectly(
+                    {
+                        to: this.proxyAdmin.address,
+                        data: encoded,
+                    },
+                    deployer
+                );
+                console.log(
+                    pool.sporePool.address,
+                    this.sporePoolLogic.address,
+                );
+                console.log(`Upgraded Pool logic for ${pool.assetName} 
+                    proxy: ${pool.sporePool.address}
+                    to: ${this.sporePoolLogic.address} (Token Variant)
+                    encoded: ${encoded}
+                `);
+            }
+        }
+    }
+
+    async upgradeMushroomNft() {
+        const {config, deployer} = this;
+
+        await this.devMultisig.execDirectly(
+            {
+                to: this.proxyAdmin.address,
+                data: proxyAdminIface.encodeFunctionData("upgrade", [
+                    this.mushroomNftProxy.address,
+                    this.mushroomNftLogic.address,
+                ]),
+            },
+            deployer
+        );
+        console.log(`Upgraded mushroomAdapterProxy ${this.mushroomNftProxy.address}
+            to: ${this.mushroomNftLogic.address}
+        `);
+    }
+
+    async upgradeMushroomAdapter() {
+        const {config, deployer} = this;
+
+        await this.devMultisig.execDirectly(
+            {
+                to: this.proxyAdmin.address,
+                data: proxyAdminIface.encodeFunctionData("upgrade", [
+                    this.mushroomAdapterProxy.address,
+                    this.mushroomAdapterLogic.address,
+                ]),
+            },
+            deployer
+        );
+        console.log(`Upgraded mushroomAdapterProxy ${this.mushroomAdapterProxy.address}
+            to: ${this.mushroomAdapterLogic.address}
+        `);
+    }
+
+    async initializeEnokiGeyser() {
+        const {config, deployer} = this;
+
+        await (
+            await this.enokiGeyserProxy.initialize(
+                this.enokiToken.address,
+                config.geyserParams.maxStakesPerAddress,
+                this.devMultisig.ethersContract.address,
+                BN(6),
+                this.bannedContractProxy.address,
+                config.poolGlobals.enokiEnabledTime,
+                config.geyserParams.maxAirdropPool,
+                this.metadataResolverProxy.address,
+                this.overrides
+            )
+        ).wait();
+    }
+
     async upgradeEnokiGeyser() {
         const {config, deployer} = this;
 
-        const newLogic = await deployContract(deployer, EnokiGeyser);
+        const newLogic = await deployContract(
+            deployer,
+            EnokiGeyser,
+            undefined,
+            this.overrides
+        );
 
         console.log(`Proxy Admin Owner ${await this.proxyAdmin.owner()}`);
-
-        const oldImpl = await this.proxyAdmin.getProxyImplementation(
-            this.enokiGeyserProxy.address
-        );
-
-        // Ensure the old logic is as expected until after we do this on live instance
-        expect(oldImpl, "Make sure we haven't upgraded from old logic yet").to.be.equal(
-            "0x25868456df5d0Eb687E8e2578884bF9171B8bdBa"
-        );
 
         expect(this.enokiGeyserProxy.address, "enokiGeyserProxy.address").to.be.equal(
             "0xf616AA8c22F100fc8D479dCfc1BD905b4D6Fa591"
@@ -866,7 +1330,6 @@ export class EnokiSystem {
         this.enokiGeyserLogic = newLogic;
 
         console.log(`Upgraded Enoki Geyser Proxy ${this.enokiGeyserProxy.address}
-            from logic : ${oldImpl}
             to logic   : ${newImpl}
         `);
 
@@ -874,37 +1337,40 @@ export class EnokiSystem {
             await this.proxyAdmin.getProxyImplementation(this.enokiGeyserProxy.address)
         ).to.be.equal(newImpl);
 
-        await (
-            await this.enokiGeyserProxy.reinitialize(
-                this.enokiToken.address,
-                config.geyserParams.maxUnlockSchedules,
-                config.geyserParams.startBonus,
-                config.geyserParams.bonusPeriodSec,
-                config.geyserParams.initialSharesPerToken,
-                config.geyserParams.maxStakesPerAddress,
-                this.devMultisig.ethersContract.address,
-                BN(6),
-                this.bannedContractProxy.address,
-                await deployer.getAddress()
-            )
-        ).wait();
+        /*
+            IERC20 enokiToken_,
+            uint256 maxUnlockSchedules,
+            uint256 startBonus_,
+            uint256 bonusPeriodSec_,
+            uint256 initialSharesPerToken,
+            uint256 maxStakesPerAddress_,
+            address devRewardAddress_,
+            uint256 devRewardPercentage_,
+            address bannedContractList_
+        */
 
-        console.log(`Initialized Enoki Geyser!`);
+        console.log(
+            !!this.enokiToken.address,
+            !!config.geyserParams.maxStakesPerAddress,
+            !!this.devMultisig.ethersContract.address,
+            !!this.bannedContractProxy.address
+        );
 
         // await (
         //     await this.enokiGeyserProxy.initialize(
         //         this.enokiToken.address,
-        //         config.geyserParams.maxUnlockSchedules,
-        //         config.geyserParams.startBonus,
-        //         config.geyserParams.bonusPeriodSec,
-        //         config.geyserParams.initialSharesPerToken,
         //         config.geyserParams.maxStakesPerAddress,
         //         this.devMultisig.ethersContract.address,
-        //         BN(10),
+        //         BN(6),
         //         this.bannedContractProxy.address,
-        //         this.devMultisig.ethersContract.address
+        //         config.poolGlobals.enokiEnabledTime,
+        //         config.geyserParams.maxAirdropPool,
+        //         this.metadataResolverProxy.address,
+        //         this.overrides
         //     )
         // ).wait();
+
+        console.log(`Initialized Enoki Geyser!`);
     }
 
     async setupMission0Pools() {
@@ -934,14 +1400,36 @@ export class EnokiSystem {
         this.missionPools = [];
         const {config, deployer} = this;
 
-        this.sporePoolLogic = await deployContract(deployer, SporePool);
-        this.sporePoolEthLogic = await deployContract(deployer, SporePoolEth);
-        this.mushroomFactoryLogic = await deployContract(deployer, MushroomFactory);
+        this.sporePoolLogic = await deployContract(
+            deployer,
+            SporePool,
+            undefined,
+            this.overrides
+        );
+        this.sporePoolEthLogic = await deployContract(
+            deployer,
+            SporePoolEth,
+            undefined,
+            this.overrides
+        );
+        this.mushroomFactoryLogic = await deployContract(
+            deployer,
+            MushroomFactory,
+            undefined,
+            this.overrides
+        );
+        this.rateVoteLogic = await deployContract(
+            deployer,
+            RateVote,
+            undefined,
+            this.overrides
+        );
 
         console.log(`Deployed SporePool Logic
             sporePoolLogic: ${this.sporePoolLogic.address}
             sporePoolEthLogic: ${this.sporePoolEthLogic.address}
             mushroomFactoryLogic: ${this.mushroomFactoryLogic.address}
+            rateVoteLogic: ${this.rateVoteLogic.address}
         `);
 
         for (const poolConfig of config.pools) {
@@ -962,24 +1450,6 @@ export class EnokiSystem {
                 costPerMushroom: ${speciesConfig.costPerMushroom}
             `);
 
-            console.log(`   Deploying Mushroom Factory Proxy...`);
-            const mushroomFactoryProxy = await deployContract(
-                deployer,
-                AdminUpgradeabilityProxy,
-                [
-                    this.mushroomFactoryLogic.address,
-                    this.proxyAdmin.address,
-                    mushroomFactoryIface.encodeFunctionData("initialize", [
-                        this.sporeToken.address,
-                        this.mushroomNftProxy.address,
-                        speciesConfig.costPerMushroom,
-                        poolConfig.mushroomSpecies,
-                        this.mushroomMetadataProxy.address,
-                    ]),
-                ],
-                this.overrides
-            );
-
             console.log(`   Deploying Spore Pool Proxy...`);
             let sporePoolProxy: Contract;
 
@@ -994,16 +1464,13 @@ export class EnokiSystem {
                         sporePoolIface.encodeFunctionData("initialize", [
                             this.sporeToken.address,
                             poolConfig.assetAddress,
-                            mushroomFactoryProxy.address,
                             this.missionsProxy.address,
-                            this.bannedContractList.address,
+                            this.bannedContractProxy.address,
                             this.devMultisig.ethersContract.address,
                             this.enokiDaoAgent.address,
                             [
                                 BN(10), // devRewardPercentage
                                 config.poolGlobals.stakingStartTime, // stakingEnabledTime
-                                config.poolGlobals.votingStartTime, // votingEnabledTime
-                                config.poolGlobals.voteDuration, // voteDuration
                                 poolConfig.initialSporesPerWeek.div(daysToSeconds(7)), // rewardRate (per second)
                             ],
                         ]),
@@ -1020,16 +1487,13 @@ export class EnokiSystem {
                         sporePoolIface.encodeFunctionData("initialize", [
                             this.sporeToken.address,
                             poolConfig.assetAddress,
-                            mushroomFactoryProxy.address,
                             this.missionsProxy.address,
-                            this.bannedContractList.address,
+                            this.bannedContractProxy.address,
                             this.devMultisig.ethersContract.address,
                             this.enokiDaoAgent.address,
                             [
                                 BN(10), // devRewardPercentage
                                 config.poolGlobals.stakingStartTime, // stakingEnabledTime
-                                config.poolGlobals.votingStartTime, // votingEnabledTime
-                                config.poolGlobals.voteDuration, // voteDuration
                                 poolConfig.initialSporesPerWeek.div(daysToSeconds(7)), // rewardRate (per second)
                             ],
                         ]),
@@ -1038,24 +1502,109 @@ export class EnokiSystem {
                 );
             }
 
+            console.log(`   Deploying Mushroom Factory Proxy...`);
+            const mushroomFactoryProxy = await deployContract(
+                deployer,
+                AdminUpgradeabilityProxy,
+                [
+                    this.mushroomFactoryLogic.address,
+                    this.proxyAdmin.address,
+                    mushroomFactoryIface.encodeFunctionData("initialize", [
+                        this.sporeToken.address,
+                        this.mushroomNftProxy.address,
+                        sporePoolProxy.address,
+                        speciesConfig.costPerMushroom,
+                        poolConfig.mushroomSpecies,
+                    ]),
+                ],
+                this.overrides
+            );
+
+            console.log(`   Deploying Rate Vote Proxy...`);
+            const rateVoteProxy = await deployContract(
+                deployer,
+                AdminUpgradeabilityProxy,
+                [
+                    this.rateVoteLogic.address,
+                    this.proxyAdmin.address,
+                    rateVoteIFace.encodeFunctionData("initialize", [
+                        sporePoolProxy.address,
+                        this.enokiToken.address,
+                        config.poolGlobals.voteDuration,
+                        config.poolGlobals.votingStartTime,
+                        this.bannedContractProxy.address,
+                    ]),
+                ],
+                this.overrides
+            );
+
+            const sporePool = new Contract(
+                sporePoolProxy.address,
+                SporePool.abi,
+                deployer
+            );
+
+            const mushroomFactory = new Contract(
+                mushroomFactoryProxy.address,
+                MushroomFactory.abi,
+                deployer
+            );
+
+            const rateVote = new Contract(
+                rateVoteProxy.address,
+                RateVote.abi,
+                deployer
+            );
+
+            console.log(`   Initializing SporePool contracts...`);
+            await (
+                await sporePool.setMushroomFactory(
+                    mushroomFactoryProxy.address,
+                    this.overrides
+                )
+            ).wait();
+
+            await (
+                await sporePool.setRateVote(rateVoteProxy.address, this.overrides)
+            ).wait();
+
+            console.log(`   Transferring Ownership...`);
+            console.log("owner", await sporePool.owner());
+            console.log("deployer", await deployer.getAddress());
+
+            const sporePoolWeb3 = new this.web3.eth.Contract(
+                SporePool.abi,
+                sporePool.address
+            );
+            const mushroomFactoryWeb3 = new this.web3.eth.Contract(
+                MushroomFactory.abi,
+                mushroomFactory.address
+            );
+            // Transfer ownership to dev multisig
+            await (
+                await sporePool
+                    .connect(deployer)
+                    .transferOwnership(
+                        this.devMultisig.ethersContract.address,
+                        this.overrides
+                    )
+            ).wait();
+
             this.missionPools.push({
                 assetName: poolConfig.assetName,
                 assetAddress: poolConfig.assetAddress,
-                sporePool: new Contract(
-                    sporePoolProxy.address,
-                    SporePool.abi,
-                    deployer
-                ),
-                mushroomFactory: new Contract(
-                    mushroomFactoryProxy.address,
-                    MushroomFactory.abi,
-                    deployer
-                ),
+                sporePool: sporePool,
+                mushroomFactory: mushroomFactory,
+                rateVote: rateVote,
             });
 
             console.log(`Deployed SporePool Proxy for ${poolConfig.assetName}
                 sporePoolProxy: ${sporePoolProxy.address}
+                sporePoolProxy: ${sporePool.address}
                 mushroomFactoryProxy: ${mushroomFactoryProxy.address}
+                mushroomFactoryProxy: ${mushroomFactory.address}
+                rateVoteProxy: ${rateVoteProxy.address}
+                rateVoteProxy: ${rateVote.address}
             `);
         }
     }

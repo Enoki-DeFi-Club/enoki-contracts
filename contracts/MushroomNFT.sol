@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.6.0;
 pragma experimental ABIEncoderV2;
 
@@ -19,7 +21,7 @@ contract MushroomNFT is ERC721UpgradeSafe, OwnableUpgradeSafe, AccessControlUpgr
     mapping (uint256 => string) public mushroomMetadataUri; // Species Id -> URI
 
     bytes32 public constant LIFESPAN_MODIFIER_ROLE = keccak256("LIFESPAN_MODIFIER_ROLE");
-        bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     function initialize() public initializer {
         __Ownable_init_unchained();
@@ -79,15 +81,12 @@ contract MushroomNFT is ERC721UpgradeSafe, OwnableUpgradeSafe, AccessControlUpgr
         _clearMushroomData(tokenId);
     }
 
-    // TODO: Approved Minters only
     function mint(address recipient, uint256 tokenId, uint256 speciesId, uint256 lifespan) public onlyMinter {
         _mintWithMetadata(recipient, tokenId, speciesId, lifespan);
     }
 
-    // TODO: Allowed approved contracts to set lifespan
     function setMushroomLifespan(uint256 index, uint256 lifespan) public onlyLifespanModifier {
-        MushroomLib.MushroomData storage data = mushroomData[index];
-        data.lifespan = lifespan;
+        mushroomData[index].lifespan = lifespan;
     }
 
     function setSpeciesUri(uint256 speciesId, string memory URI) public onlyOwner {
@@ -103,13 +102,17 @@ contract MushroomNFT is ERC721UpgradeSafe, OwnableUpgradeSafe, AccessControlUpgr
         species.minted = species.minted.add(1);
         mushroomData[tokenId] = MushroomLib.MushroomData(speciesId, species.strength, lifespan);
 
-        _mint(recipient, tokenId);
+        _safeMint(recipient, tokenId);
     }
 
     // TODO: We don't really have to do this as a newly minted mushroom will set the data
     function _clearMushroomData(uint256 tokenId) internal {
         MushroomLib.MushroomData storage data = mushroomData[tokenId];
-        MushroomLib.MushroomType storage species = mushroomTypes[data.species];     
+        MushroomLib.MushroomType storage species = mushroomTypes[data.species];   
+
+        mushroomData[tokenId].species = 0;
+        mushroomData[tokenId].strength = 0;
+        mushroomData[tokenId].lifespan = 0;
 
         species.minted = species.minted.sub(1);
     }

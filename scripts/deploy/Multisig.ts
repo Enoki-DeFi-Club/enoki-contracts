@@ -186,6 +186,6 @@ export class Multisig {
 
 
         const result = await tx.wait();
-        return result;
+        return result.events[result.events.length - 1].event;
     }
 }

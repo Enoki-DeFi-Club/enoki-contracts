@@ -40,6 +40,9 @@ import {deployCore} from "../scripts/deploy/deployCore";
 import {Operation} from "../scripts/deploy/Multisig";
 import {EnokiSystem} from "../scripts/systems/EnokiSystem";
 import {getCurrentTimestamp, increaseTime} from "../scripts/utils/timeUtils";
+import IERC20 from "../artifacts/IERC20.json";
+import {BN, ETH} from "../scripts/utils/shorthand";
+import {deployENS, ENS} from "@ethereum-waffle/ens";
 
 import {
     presaleIface,
@@ -62,6 +65,7 @@ describe("Simulate Core", function () {
         this.timeout(0);
         jsonRpcProvider = ethers.provider;
         [first, deployer, third] = await ethers.getSigners();
+        //console.log(deployer);
         const deploy = await deployCore(jsonRpcProvider, deployer, {testmode: true});
         enoki = deploy.enoki;
         config = deploy.config;

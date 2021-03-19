@@ -46,6 +46,10 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
 
+    mapping(address => uint256) public startOfStake;
+    mapping(address => uint256) public endOfStake;
+    mapping(address => uint256) public totalStaked;
+
     uint256 internal _totalSupply;
     mapping(address => uint256) internal _balances;
 
@@ -54,6 +58,9 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
     BannedContractList public bannedContractList;
 
     uint256 public stakingEnabledTime;
+
+    uint256 public yieldCap = 5184000; //60 days in seconds
+    uint256 public weightDefault = 100; //representatvie of percent
 
     address public rateVote;
 
@@ -132,10 +139,35 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
     function stake(uint256 amount) external virtual nonReentrant defend(bannedContractList) whenNotPaused updateReward(msg.sender) {
         require(amount > 0, "Cannot stake 0");
         require(now > stakingEnabledTime, "Cannot stake before staking enabled");
+        if (endOfStake[msg.sender] > 0) {
+            require(now < endOfStake[msg.sender], "Cannot stake at the end of a staking period");
+        }
         _totalSupply = _totalSupply.add(amount);
         _balances[msg.sender] = _balances[msg.sender].add(amount);
+        totalStaked[msg.sender] = totalStaked[msg.sender].add(amount);
+        uint256 stakeWeight = amount.mul(100).div(totalStaked[msg.sender]);
+        uint256 stakeHeight = weightDefault.sub(stakeWeight);
         stakingToken.safeTransferFrom(msg.sender, address(this), amount);
-        emit Staked(msg.sender, amount);
+
+        if (startOfStake[msg.sender] > 0) {
+            uint256 heightOfStart = startOfStake[msg.sender].div(100).mul(stakeHeight);
+            uint256 newStart = lastTimeRewardApplicable();
+            uint256 weightOfStart = newStart.div(100).mul(stakeWeight);
+            startOfStake[msg.sender] = heightOfStart.add(weightOfStart);
+        } else {
+            startOfStake[msg.sender] = lastTimeRewardApplicable();
+        }
+
+        if (endOfStake[msg.sender] > 0) {
+            uint256 heightOfEnd = endOfStake[msg.sender].div(100).mul(stakeHeight);
+            uint256 newEnd = startOfStake[msg.sender].add(yieldCap);
+            uint256 weightOfEnd = newEnd.div(100).mul(stakeWeight);
+            endOfStake[msg.sender] = heightOfEnd.add(weightOfEnd);
+        } else {
+            endOfStake[msg.sender] = startOfStake[msg.sender].add(yieldCap);
+        }
+
+        emit Staked(msg.sender, amount, endOfStake[msg.sender]);
     }
 
     // Withdrawing does not harvest, the rewards must be harvested separately
@@ -161,7 +193,7 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         uint256 reward = rewards[msg.sender];
 
         require(reward > 0, "No harvestable reward");
-        require(mushroomsToGrow > 0, "Must harvest at least one mushroom");
+        //require(mushroomsToGrow > 0, "Must harvest at least one mushroom");
 
         remainingReward = reward;
         toDev = 0;
@@ -188,8 +220,12 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
         mushroomFactory.growMushrooms(msg.sender, mushroomsToGrow);
         emit MushroomsGrown(msg.sender, mushroomsToGrow);
 
-        // Keep any remaining reward in pool
-        rewards[msg.sender] = remainingReward;
+        // Return remaining spore to user
+
+        uint256 remainingReturn = remainingReward.mul(1e18);
+        stakingToken.safeTransfer(msg.sender, remainingReturn);
+        rewards[msg.sender] = rewards[msg.sender].sub(totalCost).sub(remainingReward);
+        emit ReturnReward(msg.sender, remainingReturn);
     }
 
     // Withdraw, forfietting all rewards
@@ -235,7 +271,7 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
     modifier updateReward(address account) {
         rewardPerTokenStored = rewardPerToken();
         lastUpdateTime = lastTimeRewardApplicable();
-        if (account != address(0)) {
+        if (account != address(0) && endOfStake[account] > lastUpdateTime) {
             rewards[account] = earned(account);
             userRewardPerTokenPaid[account] = rewardPerTokenStored;
         }
@@ -250,9 +286,10 @@ contract SporePool is OwnableUpgradeSafe, ReentrancyGuardUpgradeSafe, PausableUp
     /* ========== EVENTS ========== */
 
     event RewardAdded(uint256 reward);
-    event Staked(address indexed user, uint256 amount);
+    event Staked(address indexed user, uint256 amount, uint256 end);
     event Withdrawn(address indexed user, uint256 amount);
     event RewardPaid(address indexed user, uint256 reward);
+    event ReturnReward(address indexed user, uint256 amount);
     event DevRewardPaid(address indexed user, uint256 reward);
     event DaoRewardPaid(address indexed user, uint256 reward);
     event MushroomsGrown(address indexed user, uint256 number);

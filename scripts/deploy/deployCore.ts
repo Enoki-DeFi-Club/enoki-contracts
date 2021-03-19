@@ -55,7 +55,7 @@ export async function deployCore(
   console.log("");
 
   console.log(colors.title("---Deploy Approved Contracts List---"));
-  await enoki.deployApprovedContractList();
+  await enoki.deployBannedContractList();
   console.log("");
 
   console.log(colors.title("---Deploy SPORE Token---"));

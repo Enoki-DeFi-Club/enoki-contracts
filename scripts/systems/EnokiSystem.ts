@@ -6,6 +6,7 @@ import {
     WHALE_AMOUNT,
 } from "../config/launchConfig";
 import {deployContract} from "ethereum-waffle";
+import {deployENS, ENS} from "@ethereum-waffle/ens";
 import ethers, {
     Signer,
     Contract,
@@ -58,7 +59,8 @@ import {Multisig} from "../deploy/Multisig";
 const Web3 = require("web3");
 import dotenv from "dotenv";
 import {getCurrentTimestamp} from "../utils/timeUtils";
-import {EnokiAddresses} from "../deploy/deployed";
+import { EnokiAddresses } from "../deploy/deployed";
+
 dotenv.config();
 
 export const LIFESPAN_MODIFIER_ROLE = utils.keccak256(
@@ -167,6 +169,7 @@ export class EnokiSystem {
     overrides!: any;
 
     deployerAddress!: string;
+
     web3: any;
 
     constructor(
@@ -196,12 +199,12 @@ export class EnokiSystem {
         provider: providers.Provider,
         deployer: Signer,
         flags: LaunchFlags,
-        file: string
+        deployed: EnokiAddresses
     ): EnokiSystem {
         const enoki = new EnokiSystem(config, provider, deployer, flags);
 
-        const rawdata = fs.readFileSync(file);
-        const deployed = JSON.parse(rawdata);
+        //const rawdata = fs.readFileSync(deployed, {encoding:'utf8'});
+        //const deployed = JSON.parse(rawdata);
 
         enoki.sporeToken = new Contract(deployed.sporeToken, SporeToken.abi, deployer);
         enoki.presale = new Contract(deployed.presale, SporePresale.abi, deployer);
@@ -251,11 +254,11 @@ export class EnokiSystem {
             deployer
         );
 
-        enoki.rateVoteLogic = new Contract(
+        /** enoki.rateVoteLogic = new Contract(
             deployed.rateVoteLogic,
             RateVote.abi,
             deployer
-        );
+        ); */
 
         enoki.enokiGeyserEscrow = new Contract(
             deployed.enokiGeyserEscrow,
@@ -397,6 +400,9 @@ export class EnokiSystem {
 
     async deployProxyAdmin() {
         const {config, deployer} = this;
+        const ens: ENS = await deployENS(deployer);
+        await ens.createTopLevelDomain('test');
+        await ens.setAddressWithReverse('test', deployer, {recursive: true});
         this.proxyAdmin = await deployContract(
             deployer,
             ProxyAdmin,
